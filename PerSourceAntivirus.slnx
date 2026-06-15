@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PerSourceAntivirus.Application/PerSourceAntivirus.Application.csproj" />
+    <Project Path="src/PerSourceAntivirus.Cli/PerSourceAntivirus.Cli.csproj" />
+    <Project Path="src/PerSourceAntivirus.Domain/PerSourceAntivirus.Domain.csproj" />
+    <Project Path="src/PerSourceAntivirus.Infrastructure/PerSourceAntivirus.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PerSourceAntivirus.Application.Tests/PerSourceAntivirus.Application.Tests.csproj" />
+    <Project Path="tests/PerSourceAntivirus.Domain.Tests/PerSourceAntivirus.Domain.Tests.csproj" />
+    <Project Path="tests/PerSourceAntivirus.Infrastructure.Tests/PerSourceAntivirus.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>
