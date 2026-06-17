@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using PerSourceAntivirus.Application.Common.Interfaces;
+using PerSourceAntivirus.Infrastructure.Common;
 
 namespace PerSourceAntivirus.Infrastructure.Files;
 
@@ -31,30 +32,8 @@ public class FileHashCalculator : IFileHashCalculator
 
         sha256.TransformFinalBlock([], 0, 0);
         var hash = Convert.ToHexString(sha256.Hash!).ToLowerInvariant();
-        var entropy = CalculateShannonEntropy(byteCounts, totalBytes);
+        var entropy = ShannonEntropy.Calculate(byteCounts, totalBytes);
 
         return new FileHashResult(hash, entropy, totalBytes);
-    }
-
-    private static double CalculateShannonEntropy(long[] byteCounts, long totalBytes)
-    {
-        if (totalBytes == 0)
-        {
-            return 0;
-        }
-
-        var entropy = 0.0;
-        foreach (var count in byteCounts)
-        {
-            if (count == 0)
-            {
-                continue;
-            }
-
-            var probability = (double)count / totalBytes;
-            entropy -= probability * Math.Log2(probability);
-        }
-
-        return entropy;
     }
 }
