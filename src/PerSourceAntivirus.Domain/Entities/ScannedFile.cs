@@ -19,4 +19,22 @@ public class ScannedFile
     public DateTime ScannedAtUtc { get; set; }
 
     public ThreatStatus ThreatStatus { get; set; }
+
+    public List<YaraMatch> YaraMatches { get; set; } = [];
+
+    public PeAnalysisResult? PeAnalysis { get; set; }
+
+    public ScriptAnalysisResult? ScriptAnalysis { get; set; }
+
+    public HashReputationResult? HashReputation { get; set; }
+
+    public FileMetadataAnalysisResult? FileMetadata { get; set; }
+
+    public OfficeMacroAnalysisResult? OfficeMacro { get; set; }
+
+    public bool IsQuarantined { get; set; }
+
+    public DateTime? QuarantinedAtUtc { get; set; }
+
+    public string? QuarantinePath { get; set; }
 }
