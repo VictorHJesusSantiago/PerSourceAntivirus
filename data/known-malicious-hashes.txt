@@ -1,0 +1,7 @@
+# Known malicious SHA-256 hashes
+# Lines starting with '#' are comments.
+# One lowercase SHA-256 hash per line.
+# Add hashes from threat intelligence feeds here.
+
+# EICAR test file hash (safe test vector)
+275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f

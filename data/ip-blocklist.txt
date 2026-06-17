@@ -1,0 +1,11 @@
+# PerSourceAntivirus IP Blocklist
+# Format: one IP address per line; lines starting with # are ignored.
+# Replace these placeholder entries with real threat intelligence feeds
+# (e.g. Feodo Tracker: https://feodotracker.abuse.ch/downloads/ipblocklist.txt)
+#
+# The addresses below are from RFC 5737 documentation ranges (TEST-NET-2/TEST-NET-3)
+# and are safe, non-routable examples for testing the blocklist provider.
+198.51.100.23
+198.51.100.47
+203.0.113.12
+203.0.113.88

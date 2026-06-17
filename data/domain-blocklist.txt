@@ -1,0 +1,9 @@
+# Domain blocklist for DNS monitoring
+# Lines starting with '#' are comments.
+# Use exact domain: evil.example.com
+# Use suffix prefix with '.': .evil-c2.com (matches any subdomain)
+# These entries are documentation/test examples only (RFC 2606 reserved).
+
+# Known malware C2 / sinkhole test entries (safe, non-routable examples)
+malware.test.invalid
+.evil-c2.test.invalid
