@@ -11,9 +11,25 @@
     <!-- Infrastructure -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
+    <PackageVersion Include="dnYara" Version="2.1.0" />
+    <PackageVersion Include="dnYara.NativePack" Version="2.1.0.3" />
+    <PackageVersion Include="PeNet" Version="6.1.2" />
+    <PackageVersion Include="SharpPcap" Version="6.3.1" />
+    <PackageVersion Include="PacketDotNet" Version="1.4.8" />
+
+    <!-- Infrastructure -->
+    <PackageVersion Include="System.Management" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
+    <PackageVersion Include="MetadataExtractor" Version="2.8.1" />
+    <PackageVersion Include="OpenMcdf" Version="3.1.0" />
+    <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.4.6" />
+    <!-- Pin to resolve NU1107: EF Core Design 9 (CSharp 4.9.2) vs PS SDK 7.4 (CSharp.Workspaces 4.8.0) -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.9.2" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.9.2" />
 
     <!-- Cli -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
 
     <!-- Tests -->
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />

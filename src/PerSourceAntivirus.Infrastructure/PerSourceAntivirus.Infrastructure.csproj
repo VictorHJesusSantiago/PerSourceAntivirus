@@ -10,6 +10,22 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="dnYara" />
+    <PackageReference Include="dnYara.NativePack" />
+    <PackageReference Include="PeNet" />
+    <PackageReference Include="SharpPcap" />
+    <PackageReference Include="PacketDotNet" />
+    <PackageReference Include="System.Management" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="MetadataExtractor" />
+    <PackageReference Include="OpenMcdf" />
+    <PackageReference Include="Microsoft.PowerShell.SDK" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Common" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\data\**\*" LinkBase="data" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
