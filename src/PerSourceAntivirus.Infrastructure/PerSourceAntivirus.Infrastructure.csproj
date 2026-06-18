@@ -28,6 +28,11 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime" />
+    <PackageReference Include="iced" />
+    <PackageReference Include="SharpCompress" />
+    <PackageReference Include="PdfPig" />
+    <PackageReference Include="MimeKit" />
+    <PackageReference Include="SixLabors.ImageSharp" />
   </ItemGroup>
 
   <ItemGroup>
