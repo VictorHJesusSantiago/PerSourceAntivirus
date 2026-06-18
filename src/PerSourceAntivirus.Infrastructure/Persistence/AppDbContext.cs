@@ -17,6 +17,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ScheduledScan> ScheduledScans => Set<ScheduledScan>();
     public DbSet<FileMetadataAnalysisResult> FileMetadataResults => Set<FileMetadataAnalysisResult>();
     public DbSet<OfficeMacroAnalysisResult> OfficeMacroResults => Set<OfficeMacroAnalysisResult>();
+    public DbSet<MbrSnapshot> MbrSnapshots => Set<MbrSnapshot>();
+    public DbSet<HoneypotFile> HoneypotFiles => Set<HoneypotFile>();
+    public DbSet<RansomwareAlert> RansomwareAlerts => Set<RansomwareAlert>();
+    public DbSet<PeMlPrediction> PeMlPredictions => Set<PeMlPrediction>();
+    public DbSet<WfpBlock> WfpBlocks => Set<WfpBlock>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -132,6 +137,46 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             builder.HasKey(m => m.Id);
             builder.Property(m => m.SuspiciousPatterns).IsRequired();
+        });
+
+        modelBuilder.Entity<MbrSnapshot>(builder =>
+        {
+            builder.HasKey(s => s.Id);
+            builder.Property(s => s.Sha256Hash).IsRequired().HasMaxLength(64);
+            builder.HasIndex(s => new { s.DriveIndex, s.IsBaseline });
+        });
+
+        modelBuilder.Entity<PeMlPrediction>(builder =>
+        {
+            builder.HasKey(p => p.Id);
+            builder.Property(p => p.FilePath).IsRequired();
+            builder.Property(p => p.Classification).IsRequired();
+            builder.Property(p => p.ModelVersion).IsRequired();
+            builder.HasIndex(p => p.Classification);
+        });
+
+        modelBuilder.Entity<WfpBlock>(builder =>
+        {
+            builder.HasKey(b => b.Id);
+            builder.Property(b => b.IpAddress).IsRequired();
+            builder.HasIndex(b => new { b.IpAddress, b.IsActive });
+        });
+
+        modelBuilder.Entity<HoneypotFile>(builder =>
+        {
+            builder.HasKey(h => h.Id);
+            builder.Property(h => h.FilePath).IsRequired();
+            builder.Property(h => h.FileName).IsRequired();
+            builder.Property(h => h.DecoyType).IsRequired();
+        });
+
+        modelBuilder.Entity<RansomwareAlert>(builder =>
+        {
+            builder.HasKey(a => a.Id);
+            builder.Property(a => a.FilePath).IsRequired();
+            builder.Property(a => a.Detail).IsRequired();
+            builder.HasIndex(a => a.DetectedAtUtc);
+            builder.HasIndex(a => a.Severity);
         });
     }
 }

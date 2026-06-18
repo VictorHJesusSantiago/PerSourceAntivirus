@@ -4,10 +4,12 @@ namespace PerSourceAntivirus.Infrastructure.Network;
 
 public class StaticDomainBlocklist : IDomainBlocklist
 {
-    private readonly HashSet<string> _entries;
+    private readonly string _blocklistFilePath;
+    private volatile HashSet<string> _entries;
 
     public StaticDomainBlocklist(string blocklistFilePath)
     {
+        _blocklistFilePath = blocklistFilePath;
         _entries = LoadEntries(blocklistFilePath);
     }
 
@@ -36,6 +38,8 @@ public class StaticDomainBlocklist : IDomainBlocklist
         reason = null;
         return false;
     }
+
+    public void Reload() => _entries = LoadEntries(_blocklistFilePath);
 
     private static HashSet<string> LoadEntries(string path)
     {
