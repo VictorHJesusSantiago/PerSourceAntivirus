@@ -22,6 +22,8 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
     <PackageVersion Include="MetadataExtractor" Version="2.8.1" />
     <PackageVersion Include="OpenMcdf" Version="3.1.0" />
+    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.7" />
+    <PackageVersion Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
     <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.4.6" />
     <!-- Pin to resolve NU1107: EF Core Design 9 (CSharp 4.9.2) vs PS SDK 7.4 (CSharp.Workspaces 4.8.0) -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="4.9.2" />
