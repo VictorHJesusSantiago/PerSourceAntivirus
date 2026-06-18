@@ -1,0 +1,94 @@
+; PerSourceAntivirus.Driver.inf
+;
+; INF for installing the PSAVDriver Windows Kernel Minifilter.
+; ClassGuid: {b1d1a169-c54f-4379-81db-bee7d88d7454}  (Anti-Virus)
+; Altitude:  325000  (FSFilter Anti-Virus range 320000-329999)
+; DriverVer: 06/17/2026, 1.0.0.0
+;
+
+[Version]
+Signature          = "$Windows NT$"
+Class              = "AntiVirus"
+ClassGuid          = {b1d1a169-c54f-4379-81db-bee7d88d7454}
+Provider           = %ProviderName%
+DriverVer          = 06/17/2026,1.0.0.0
+CatalogFile        = PSAVDriver.cat
+PnpLockDown        = 1
+
+; -----------------------------------------------------------------------
+[DestinationDirs]
+DefaultDestDir     = 12           ; %windir%\System32\drivers
+PSAVDriver.DriverFiles = 12
+
+; -----------------------------------------------------------------------
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+PSAVDriver.sys = 1,,
+
+; -----------------------------------------------------------------------
+; Default install section (used by right-click > Install on older OS)
+; -----------------------------------------------------------------------
+[DefaultInstall]
+OptionDesc         = %ServiceDescription%
+CopyFiles          = PSAVDriver.DriverFiles
+
+[DefaultInstall.NTamd64]
+OptionDesc         = %ServiceDescription%
+CopyFiles          = PSAVDriver.DriverFiles
+
+[DefaultInstall.Services]
+AddService         = %ServiceName%,,PSAVDriver.Service
+
+; -----------------------------------------------------------------------
+; Default uninstall
+; -----------------------------------------------------------------------
+[DefaultUninstall]
+DelFiles           = PSAVDriver.DriverFiles
+DelReg             = PSAVDriver.DelReg
+
+[DefaultUninstall.Services]
+DelService         = %ServiceName%,0x200      ; SPSVCINST_STOPSERVICE
+
+[PSAVDriver.DelReg]
+HKLM,"System\CurrentControlSet\Services\%ServiceName%\Instances"
+
+; -----------------------------------------------------------------------
+; File copy list
+; -----------------------------------------------------------------------
+[PSAVDriver.DriverFiles]
+PSAVDriver.sys,,,0x00000040    ; COPYFLG_OVERWRITE_OLDER_ONLY
+
+; -----------------------------------------------------------------------
+; Service installation
+; -----------------------------------------------------------------------
+[PSAVDriver.Service]
+DisplayName        = %ServiceDescription%
+Description        = %ServiceDescription%
+ServiceBinary      = %12%\PSAVDriver.sys
+ServiceType        = 2             ; SERVICE_FILE_SYSTEM_DRIVER
+StartType          = 1             ; SERVICE_SYSTEM_START (load at boot)
+ErrorControl       = 1             ; SERVICE_ERROR_NORMAL
+LoadOrderGroup     = "FSFilter Anti-Virus"
+AddReg             = PSAVDriver.AddReg
+
+; -----------------------------------------------------------------------
+; Registry values
+; -----------------------------------------------------------------------
+[PSAVDriver.AddReg]
+; Filter altitude and instance name
+HKLM,"System\CurrentControlSet\Services\%ServiceName%\Instances","DefaultInstance",0x00000000,%InstanceName%
+HKLM,"System\CurrentControlSet\Services\%ServiceName%\Instances\%InstanceName%","Altitude",0x00000000,%Altitude%
+HKLM,"System\CurrentControlSet\Services\%ServiceName%\Instances\%InstanceName%","Flags",0x00010001,0x0
+
+; -----------------------------------------------------------------------
+; Strings
+; -----------------------------------------------------------------------
+[Strings]
+ProviderName       = "PerSourceAntivirus"
+ServiceName        = "PSAVDriver"
+ServiceDescription = "PerSourceAntivirus Minifilter Driver"
+DiskName           = "PerSourceAntivirus Driver Disk"
+InstanceName       = "PSAVDriver Instance"
+Altitude           = "325000"
