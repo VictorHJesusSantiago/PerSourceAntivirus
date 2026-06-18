@@ -3,6 +3,7 @@ namespace PerSourceAntivirus.Application.Common.Interfaces;
 public interface IYaraScanner
 {
     IReadOnlyList<YaraRuleMatch> ScanFile(string filePath);
+    IReadOnlyList<YaraRuleMatch> ScanMemory(byte[] data);
     void Reload();
 }
 
