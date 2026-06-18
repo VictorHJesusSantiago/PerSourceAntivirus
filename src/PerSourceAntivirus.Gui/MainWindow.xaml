@@ -1,0 +1,100 @@
+<Window x:Class="PerSourceAntivirus.Gui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:PerSourceAntivirus.Gui.Views"
+        xmlns:vm="clr-namespace:PerSourceAntivirus.Gui.ViewModels"
+        Title="PerSource Antivirus" Height="640" Width="1024"
+        MinHeight="500" MinWidth="800"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <!-- DataTemplates for view switching -->
+        <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+            <views:DashboardView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ThreatsViewModel}">
+            <views:ThreatsView/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:QuarantineViewModel}">
+            <views:QuarantineView/>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ====== Navigation sidebar ====== -->
+        <Border Grid.Column="0" Background="{StaticResource NavBackground}">
+            <DockPanel>
+                <!-- Logo / App name -->
+                <StackPanel DockPanel.Dock="Top" Margin="16,20,16,24">
+                    <TextBlock Text="🛡 PSAV" FontSize="18" FontWeight="Bold"
+                               Foreground="{StaticResource TextPrimary}"/>
+                    <TextBlock Text="PerSource Antivirus" FontSize="10"
+                               Foreground="{StaticResource TextSecondary}" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <!-- Nav buttons -->
+                <StackPanel DockPanel.Dock="Top">
+                    <Button Content="  📊  Dashboard"
+                            Command="{Binding ShowDashboardCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDashboardActive}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                        <Setter Property="Background" Value="#2A2A3E"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="  ⚠️  Threats"
+                            Command="{Binding ShowThreatsCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsThreatsActive}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                        <Setter Property="Background" Value="#2A2A3E"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button Content="  🔒  Quarantine"
+                            Command="{Binding ShowQuarantineCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource NavButtonStyle}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsQuarantineActive}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                        <Setter Property="Background" Value="#2A2A3E"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+
+                <!-- Threat count badge at bottom -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="16,0,16,16">
+                    <Separator Background="#2A2A3E" Margin="0,0,0,8"/>
+                    <TextBlock Foreground="{StaticResource TextSecondary}" FontSize="11">
+                        <Run Text="Threats: "/>
+                        <Run Text="{Binding Dashboard.ThreatCount}" Foreground="#FF4A4A" FontWeight="Bold"/>
+                    </TextBlock>
+                    <TextBlock Text="{Binding Dashboard.LastScanTime, StringFormat=Last scan: {0:HH:mm}}"
+                               Foreground="{StaticResource TextSecondary}" FontSize="10" Margin="0,2,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ====== Main content area ====== -->
+        <Border Grid.Column="1" Background="{StaticResource ContentBackground}">
+            <ContentControl Content="{Binding CurrentView}"/>
+        </Border>
+    </Grid>
+</Window>
