@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PerSourceAntivirus.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617202347_RansomwareProtection")]
+    partial class RansomwareProtection
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
@@ -305,40 +308,6 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.ToTable("PeAnalysisResults");
                 });
 
-            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PeMlPrediction", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Classification")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FeaturesJson")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FilePath")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<float>("MaliciousProbability")
-                        .HasColumnType("REAL");
-
-                    b.Property<string>("ModelVersion")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("PredictedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Classification");
-
-                    b.ToTable("PeMlPredictions");
-                });
-
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PeSection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -550,39 +519,6 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("ScriptAnalysisResults");
-                });
-
-            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.WfpBlock", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("AddedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<ulong>("FilterIdInboundV4")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<ulong>("FilterIdOutboundV4")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("IpAddress")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IpAddress", "IsActive");
-
-                    b.ToTable("WfpBlocks");
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.YaraMatch", b =>
