@@ -38,6 +38,19 @@ public class YaraScanner : IYaraScanner, IDisposable
             .ToList();
     }
 
+    public IReadOnlyList<YaraRuleMatch> ScanMemory(byte[] data)
+    {
+        CompiledRules? rules;
+        lock (_lock) { rules = _compiledRules; }
+        if (rules is null) return [];
+
+        var scanner = new Scanner();
+        var results = scanner.ScanMemory(ref data, rules);
+        return results
+            .Select(r => new YaraRuleMatch(r.MatchingRule.Identifier, [.. r.MatchingRule.Tags]))
+            .ToList();
+    }
+
     public void Reload()
     {
         if (!Directory.Exists(_rulesDirectory)) return;

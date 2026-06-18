@@ -4,10 +4,12 @@ namespace PerSourceAntivirus.Infrastructure.Reputation;
 
 public class LocalHashReputationService : IHashReputationService
 {
+    private readonly string _blocklistFilePath;
     private volatile HashSet<string> _knownMalicious;
 
     public LocalHashReputationService(string blocklistFilePath)
     {
+        _blocklistFilePath = blocklistFilePath;
         _knownMalicious = LoadHashes(blocklistFilePath);
     }
 
@@ -19,6 +21,8 @@ public class LocalHashReputationService : IHashReputationService
             : null;
         return Task.FromResult(result);
     }
+
+    public void Reload() => _knownMalicious = LoadHashes(_blocklistFilePath);
 
     private static HashSet<string> LoadHashes(string path)
     {
