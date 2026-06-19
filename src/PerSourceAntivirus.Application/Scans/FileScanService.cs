@@ -13,7 +13,12 @@ public class FileScanService(
     IScannedFileRepository repository,
     IHashReputationService reputationService,
     IFileMetadataAnalyzer metadataAnalyzer,
-    IOfficeMacroAnalyzer macroAnalyzer)
+    IOfficeMacroAnalyzer macroAnalyzer,
+    IAdsScanner? adsScanner = null,
+    IArchiveScanner? archiveScanner = null,
+    IPdfScanner? pdfScanner = null,
+    IEmailScanner? emailScanner = null,
+    ISteganographyDetector? steganographyDetector = null)
 {
     /// <summary>
     /// Pure analysis — no DB write. Thread-safe: can be called concurrently for different files.
@@ -174,6 +179,55 @@ public class FileScanService(
                 HasObfuscation = macroData.HasObfuscation,
                 SuspiciousPatterns = string.Join(",", macroData.SuspiciousPatterns)
             };
+        }
+
+        // ADS scanning (Windows NTFS only)
+        if (adsScanner != null)
+        {
+            var streams = adsScanner.ScanStreams(filePath);
+            if (streams.Count > 0)
+            {
+                // If any suspicious ADS found, elevate threat status
+                if (streams.Any(s => s.IsSuspicious) && scannedFile.ThreatStatus == ThreatStatus.Clean)
+                    scannedFile.ThreatStatus = ThreatStatus.Suspicious;
+            }
+        }
+
+        // Archive scanning
+        if (archiveScanner?.CanScan(filePath) == true)
+        {
+            var archiveSummary = await archiveScanner.ScanAsync(filePath, cancellationToken);
+            if (archiveSummary.HasZipBomb || archiveSummary.SuspiciousEntries > 0)
+            {
+                if (scannedFile.ThreatStatus == ThreatStatus.Clean)
+                    scannedFile.ThreatStatus = ThreatStatus.Suspicious;
+            }
+        }
+
+        // PDF scanning
+        if (pdfScanner?.CanScan(filePath) == true)
+        {
+            var pdfData = pdfScanner.Scan(filePath);
+            if (pdfData?.RiskScore >= 3 && scannedFile.ThreatStatus == ThreatStatus.Clean)
+                scannedFile.ThreatStatus = ThreatStatus.Suspicious;
+            if (pdfData?.RiskScore >= 6)
+                scannedFile.ThreatStatus = ThreatStatus.Malicious;
+        }
+
+        // Email scanning
+        if (emailScanner?.CanScan(filePath) == true)
+        {
+            var emailData = emailScanner.Scan(filePath);
+            if (emailData?.RiskScore >= 4 && scannedFile.ThreatStatus == ThreatStatus.Clean)
+                scannedFile.ThreatStatus = ThreatStatus.Suspicious;
+        }
+
+        // Steganography detection
+        if (steganographyDetector?.CanAnalyze(filePath) == true)
+        {
+            var stegoData = steganographyDetector.Analyze(filePath);
+            if (stegoData?.IsSuspicious == true && scannedFile.ThreatStatus == ThreatStatus.Clean)
+                scannedFile.ThreatStatus = ThreatStatus.Suspicious;
         }
 
         return scannedFile;
