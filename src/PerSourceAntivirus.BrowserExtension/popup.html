@@ -1,0 +1,88 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>PerSource Antivirus</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 280px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13px;
+      background: #1a1a2e;
+      color: #e0e0f0;
+    }
+    header {
+      background: #16213e;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #2a2a4e;
+    }
+    header span.logo { font-size: 20px; }
+    header h1 { font-size: 14px; font-weight: 600; }
+    section { padding: 12px 14px; }
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #e74c3c;
+      flex-shrink: 0;
+    }
+    .dot.ok { background: #2ecc71; }
+    .url-box {
+      background: #0f3460;
+      border-radius: 4px;
+      padding: 8px 10px;
+      word-break: break-all;
+      font-size: 11px;
+      color: #a0b0d0;
+      margin-bottom: 8px;
+    }
+    button {
+      width: 100%;
+      padding: 7px;
+      border: none;
+      border-radius: 4px;
+      background: #e94560;
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    button:hover { background: #c0392b; }
+    button.secondary { background: #16213e; color: #a0b0d0; }
+    button.secondary:hover { background: #0f3460; }
+    footer {
+      padding: 8px 14px;
+      font-size: 10px;
+      color: #555577;
+      border-top: 1px solid #2a2a4e;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">🛡</span>
+    <h1>PerSource Antivirus</h1>
+  </header>
+  <section>
+    <div class="status-row">
+      <div class="dot" id="agentDot"></div>
+      <span id="agentStatus">Verificando agente...</span>
+    </div>
+    <div class="url-box" id="currentUrl">Carregando...</div>
+    <button id="checkBtn">Verificar URL Atual</button>
+    <button class="secondary" id="openDashboard">Abrir Dashboard</button>
+  </section>
+  <footer>PerSource Antivirus v1.0 — Proteção do Navegador</footer>
+  <script src="popup.js"></script>
+</body>
+</html>
