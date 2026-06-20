@@ -5,7 +5,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PerSourceAntivirus.Application;
-using Microsoft.Extensions.DependencyInjection;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Application.Network.Commands.StartDnsMonitor;
 using PerSourceAntivirus.Application.Network.Commands.StartNetworkCapture;
@@ -15,7 +14,6 @@ using PerSourceAntivirus.Application.Network.Queries.GetNetworkConnectionEvents;
 using PerSourceAntivirus.Application.Network.Queries.ListCaptureDevices;
 using PerSourceAntivirus.Application.Process.Commands.ScanProcessMemory;
 using PerSourceAntivirus.Application.Process.Commands.StartProcessMonitor;
-using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Application.Network.Commands.AddWfpBlock;
 using PerSourceAntivirus.Application.Network.Commands.RemoveWfpBlock;
 using PerSourceAntivirus.Application.Network.Commands.SyncWfpBlocklist;
@@ -37,6 +35,21 @@ using PerSourceAntivirus.Application.Scans.Commands.ScanDirectory;
 using PerSourceAntivirus.Application.Scans.Commands.WatchDirectory;
 using PerSourceAntivirus.Application.Scans.Queries.GetScheduledScans;
 using PerSourceAntivirus.Application.Scans.Queries.GetScannedFiles;
+using PerSourceAntivirus.Application.Rootkit.Commands.ScanRootkits;
+using PerSourceAntivirus.Application.Rootkit.Queries.GetRootkitFindings;
+using PerSourceAntivirus.Application.Updates.Commands.CheckUpdates;
+using PerSourceAntivirus.Application.Updates.Commands.ApplyUpdates;
+using PerSourceAntivirus.Application.Wmi.Commands.ScanWmiPersistence;
+using PerSourceAntivirus.Application.Wmi.Queries.GetWmiAlerts;
+using PerSourceAntivirus.Application.SelfIntegrity.Commands.VerifySelfIntegrity;
+using PerSourceAntivirus.Application.SelfIntegrity.Commands.SaveBaseline;
+using PerSourceAntivirus.Application.Siem.Commands.ExportSiemBatch;
+using PerSourceAntivirus.Application.Uefi.Commands.ScanUefi;
+using PerSourceAntivirus.Application.Sandbox.Commands.AnalyzeBehavior;
+using PerSourceAntivirus.Application.Tls.Commands.StartTlsProxy;
+using PerSourceAntivirus.Application.Tls.Commands.StopTlsProxy;
+using PerSourceAntivirus.Application.ComHijack.Commands.ScanComHijack;
+using PerSourceAntivirus.Application.ComHijack.Queries.GetComAlerts;
 using PerSourceAntivirus.Domain.Enums;
 using PerSourceAntivirus.Infrastructure;
 using PerSourceAntivirus.Infrastructure.Persistence;
@@ -961,6 +974,242 @@ switch (args[0])
             return 1;
         }
         Console.WriteLine("Kernel monitoring stopped.");
+        break;
+    }
+
+    case "scan-rootkits":
+    {
+        Console.WriteLine("Scanning for rootkits (DKOM, hidden drivers, SSDT hooks)...");
+        var rkFindings = await mediator.Send(new ScanRootkitsCommand());
+        Console.WriteLine($"Found {rkFindings.Count} rootkit indicator(s).");
+        if (rkFindings.Count > 0)
+        {
+            Console.WriteLine($"{"Time",-22} {"Type",-20} {"Severity",-10} {"PID",-7} Description");
+            Console.WriteLine(new string('-', 120));
+            foreach (var f in rkFindings)
+                Console.WriteLine($"{f.DetectedAtUtc:yyyy-MM-dd HH:mm:ss,-22} {f.FindingType,-20} {f.Severity,-10} {f.ProcessId,-7} {f.Description}");
+        }
+        break;
+    }
+
+    case "rootkit-alerts":
+    {
+        var rkAlerts = await mediator.Send(new GetRootkitFindingsQuery());
+        if (rkAlerts.Count == 0) { Console.WriteLine("No rootkit findings recorded. Run: scan-rootkits"); break; }
+        Console.WriteLine($"{"Time",-22} {"Type",-20} {"Severity",-10} {"PID",-7} Description");
+        Console.WriteLine(new string('-', 120));
+        foreach (var f in rkAlerts)
+            Console.WriteLine($"{f.DetectedAtUtc:yyyy-MM-dd HH:mm:ss,-22} {f.FindingType,-20} {f.Severity,-10} {f.ProcessId,-7} {f.Description}");
+        break;
+    }
+
+    case "check-updates":
+    {
+        Console.WriteLine("Checking for updates...");
+        var checkResult = await mediator.Send(new CheckUpdatesCommand());
+        if (checkResult.UpdateAvailable)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"Update available: {checkResult.CurrentVersion} → {checkResult.LatestVersion}");
+            Console.ResetColor();
+            Console.WriteLine($"Updated components: {string.Join(", ", checkResult.UpdatedComponents)}");
+        }
+        else
+            Console.WriteLine($"Up to date (version {checkResult.CurrentVersion}).");
+        break;
+    }
+
+    case "apply-updates":
+    {
+        Console.WriteLine("Applying updates...");
+        var updated = await mediator.Send(new ApplyUpdatesCommand());
+        Console.WriteLine($"Updated {updated} component(s).");
+        break;
+    }
+
+    case "scan-wmi":
+    {
+        Console.WriteLine("Scanning WMI event subscriptions for persistence...");
+        var wmiFindings = await mediator.Send(new ScanWmiPersistenceCommand());
+        Console.WriteLine($"Found {wmiFindings.Count} WMI persistence subscription(s).");
+        if (wmiFindings.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"{"Time",-22} {"Severity",-10} {"Consumer",-25} {"Filter",-25} Command/Script");
+            Console.WriteLine(new string('-', 140));
+            foreach (var w in wmiFindings)
+                Console.WriteLine($"{w.DetectedAtUtc:yyyy-MM-dd HH:mm:ss,-22} {w.Severity,-10} {w.ConsumerName,-25} {w.FilterName,-25} {w.ScriptOrCommand}");
+            Console.ResetColor();
+        }
+        break;
+    }
+
+    case "wmi-alerts":
+    {
+        var wmiAlerts = await mediator.Send(new GetWmiAlertsQuery());
+        if (wmiAlerts.Count == 0) { Console.WriteLine("No WMI persistence alerts. Run: scan-wmi"); break; }
+        Console.WriteLine($"{"Time",-22} {"Severity",-10} {"Consumer",-25} {"Filter",-25} Command/Script");
+        Console.WriteLine(new string('-', 140));
+        foreach (var w in wmiAlerts)
+            Console.WriteLine($"{w.DetectedAtUtc:yyyy-MM-dd HH:mm:ss,-22} {w.Severity,-10} {w.ConsumerName,-25} {w.FilterName,-25} {w.ScriptOrCommand}");
+        break;
+    }
+
+    case "verify-integrity":
+    {
+        Console.WriteLine("Verifying self-integrity of PSAV binaries...");
+        var integrityReport = await mediator.Send(new VerifySelfIntegrityCommand());
+        if (integrityReport.IsIntact)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("INTEGRITY OK — all binaries match baseline.");
+            Console.ResetColor();
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("INTEGRITY VIOLATION DETECTED!");
+            Console.ResetColor();
+            foreach (var f in integrityReport.TamperedFiles)
+                Console.WriteLine($"  TAMPERED: {f}");
+            foreach (var f in integrityReport.MissingFiles)
+                Console.WriteLine($"  MISSING:  {f}");
+        }
+        Console.WriteLine($"Checked at: {integrityReport.CheckedAtUtc:yyyy-MM-dd HH:mm:ss} UTC");
+        break;
+    }
+
+    case "save-baseline":
+    {
+        Console.WriteLine("Saving integrity baseline...");
+        var saved = await mediator.Send(new SaveBaselineCommand());
+        Console.WriteLine(saved ? "Baseline saved successfully." : "Failed to save baseline.");
+        break;
+    }
+
+    case "export-siem":
+    {
+        int siemMax = 100;
+        for (var i = 1; i < args.Length; i++)
+            if (args[i] == "--max" && i + 1 < args.Length && int.TryParse(args[i + 1], out var m)) { siemMax = m; i++; }
+
+        Console.WriteLine($"Exporting up to {siemMax} SIEM events...");
+        var exported = await mediator.Send(new ExportSiemBatchCommand(siemMax));
+        Console.WriteLine($"Exported {exported} event(s).");
+        break;
+    }
+
+    case "scan-uefi":
+    {
+        Console.WriteLine("Scanning UEFI firmware tables for bootkit signatures...");
+        var uefiFindings = await mediator.Send(new ScanUefiCommand());
+        Console.WriteLine($"Found {uefiFindings.Count} UEFI finding(s).");
+        if (uefiFindings.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"{"Time",-22} {"Table",-12} {"Signature",-30} {"Offset",-10} Description");
+            Console.WriteLine(new string('-', 130));
+            foreach (var u in uefiFindings)
+                Console.WriteLine($"{u.DetectedAtUtc:yyyy-MM-dd HH:mm:ss,-22} {u.TableName,-12} {u.SignatureName,-30} {u.MatchOffset,-10} {u.Description}");
+            Console.ResetColor();
+        }
+        break;
+    }
+
+    case "analyze-sandbox":
+    {
+        if (args.Length < 2)
+        {
+            Console.Error.WriteLine("Usage: analyze-sandbox <exe-path> [--timeout N]");
+            return 1;
+        }
+        var sandboxFile = args[1];
+        int sbTimeout = 30;
+        for (var i = 2; i < args.Length; i++)
+            if (args[i] == "--timeout" && i + 1 < args.Length && int.TryParse(args[i + 1], out var t)) { sbTimeout = t; i++; }
+
+        Console.WriteLine($"Enhanced behavioral analysis: {sandboxFile} (timeout: {sbTimeout}s)");
+        var report = await mediator.Send(new AnalyzeBehaviorCommand(sandboxFile, sbTimeout));
+        Console.ForegroundColor = report.OverallVerdict == "Malicious" ? ConsoleColor.Red
+            : report.OverallVerdict == "Suspicious" ? ConsoleColor.Yellow
+            : ConsoleColor.Green;
+        Console.WriteLine($"Verdict: {report.OverallVerdict}");
+        Console.ResetColor();
+        Console.WriteLine($"Duration:  {report.ExecutionTime.TotalSeconds:F2}s");
+        Console.WriteLine($"Processes: {report.ProcessesCreated.Count}  Files created: {report.FilesCreated.Count}  Deleted: {report.FilesDeleted.Count}");
+        Console.WriteLine($"Registry:  {report.RegistryKeysModified.Count}  Network: {report.NetworkConnections.Count}");
+        if (report.SuspiciousIndicators.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("Suspicious indicators:");
+            foreach (var ind in report.SuspiciousIndicators)
+                Console.WriteLine($"  - {ind}");
+            Console.ResetColor();
+        }
+        if (report.ErrorMessage is not null)
+            Console.Error.WriteLine($"Error: {report.ErrorMessage}");
+        break;
+    }
+
+    case "tls-proxy":
+    {
+        if (args.Length < 2) { Console.Error.WriteLine("Usage: tls-proxy <start|stop|status>"); return 1; }
+        switch (args[1])
+        {
+            case "start":
+            {
+                int tlsPort = 8080;
+                for (var i = 2; i < args.Length; i++)
+                    if (args[i] == "--port" && i + 1 < args.Length && int.TryParse(args[i + 1], out var p)) { tlsPort = p; i++; }
+
+                Console.WriteLine($"Starting TLS inspection proxy on port {tlsPort}...");
+                var tlsStatus = await mediator.Send(new StartTlsProxyCommand(tlsPort));
+                Console.WriteLine($"Proxy running: port={tlsStatus.Port}, CA={tlsStatus.CaCertThumbprint}");
+                break;
+            }
+            case "stop":
+                await mediator.Send(new StopTlsProxyCommand());
+                Console.WriteLine("TLS proxy stopped.");
+                break;
+            case "status":
+            {
+                var inspector = host.Services.GetRequiredService<PerSourceAntivirus.Application.Common.Interfaces.ITlsInspector>();
+                var st = inspector.GetStatus();
+                Console.WriteLine($"Running: {st.IsRunning}  Port: {st.Port}  CA: {st.CaCertThumbprint}");
+                break;
+            }
+            default:
+                Console.Error.WriteLine("Usage: tls-proxy <start|stop|status>");
+                return 1;
+        }
+        break;
+    }
+
+    case "scan-com":
+    {
+        Console.WriteLine("Scanning for COM hijacking and DLL sideloading...");
+        var comFindings = await mediator.Send(new ScanComHijackCommand());
+        Console.WriteLine($"Found {comFindings.Count} COM/DLL hijack indicator(s).");
+        if (comFindings.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"{"Time",-22} {"Type",-18} {"Severity",-10} {"CLSID/Path",-40} Suspicious Path");
+            Console.WriteLine(new string('-', 140));
+            foreach (var c in comFindings)
+                Console.WriteLine($"{c.DetectedAtUtc:yyyy-MM-dd HH:mm:ss,-22} {c.AlertType,-18} {c.Severity,-10} {c.ClsidOrPath,-40} {c.SuspiciousPath}");
+            Console.ResetColor();
+        }
+        break;
+    }
+
+    case "com-alerts":
+    {
+        var comAlerts = await mediator.Send(new GetComAlertsQuery());
+        if (comAlerts.Count == 0) { Console.WriteLine("No COM hijack alerts. Run: scan-com"); break; }
+        Console.WriteLine($"{"Time",-22} {"Type",-18} {"Severity",-10} {"CLSID/Path",-40} Suspicious Path");
+        Console.WriteLine(new string('-', 140));
+        foreach (var c in comAlerts)
+            Console.WriteLine($"{c.DetectedAtUtc:yyyy-MM-dd HH:mm:ss,-22} {c.AlertType,-18} {c.Severity,-10} {c.ClsidOrPath,-40} {c.SuspiciousPath}");
         break;
     }
 
