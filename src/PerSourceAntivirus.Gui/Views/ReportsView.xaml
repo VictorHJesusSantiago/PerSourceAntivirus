@@ -1,0 +1,143 @@
+<UserControl x:Class="PerSourceAntivirus.Gui.Views.ReportsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24">
+            <TextBlock Text="Reports &amp; Trends" FontSize="20" FontWeight="Bold"
+                       Foreground="#333" Margin="0,0,0,16"/>
+
+            <!-- Report generation -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Generate Reports" FontSize="15" FontWeight="SemiBold"
+                               Foreground="#333" Margin="0,0,0,12"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button Content="Generate Weekly Report"
+                                Command="{Binding GenerateWeeklyCommand}"
+                                Padding="14,8" Margin="0,0,8,0"
+                                Background="{StaticResource AccentBrush}" Foreground="White"
+                                BorderThickness="0" Cursor="Hand"/>
+                        <Button Content="Generate Monthly Report"
+                                Command="{Binding GenerateMonthlyCommand}"
+                                Padding="14,8"
+                                Background="#5A7EFF" Foreground="White"
+                                BorderThickness="0" Cursor="Hand"/>
+                        <TextBlock Text="Generating..." Margin="12,0,0,0"
+                                   VerticalAlignment="Center" Foreground="{StaticResource AccentBrush}"
+                                   FontStyle="Italic" FontSize="13">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsGenerating}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                    <TextBlock Text="{Binding LastReportPath, StringFormat=Last report: {0}}"
+                               FontSize="12" Foreground="#666"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Threat Types bar chart -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Threat Types (Top 10)" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="#333"/>
+                        <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="12"
+                                   Foreground="#888">
+                            <Run Text="Total: "/>
+                            <Run Text="{Binding TotalThreatCount}" FontWeight="SemiBold" Foreground="#E94560"/>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <ItemsControl ItemsSource="{Binding ChartItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="160"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="48"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding AlertType}" FontSize="12"
+                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                               Foreground="#444"/>
+                                    <Border Grid.Column="1" Height="16" CornerRadius="3"
+                                            HorizontalAlignment="Left"
+                                            Width="{Binding BarWidth}"
+                                            VerticalAlignment="Center">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                <GradientStop Color="#E94560" Offset="0"/>
+                                                <GradientStop Color="#5A7EFF" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+                                    <TextBlock Grid.Column="2" Text="{Binding Count}" FontSize="12"
+                                               Foreground="#555" Margin="6,0,0,0"
+                                               VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Daily trend line chart -->
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Daily Trend (Last 30 Days)" FontSize="15" FontWeight="SemiBold"
+                               Foreground="#333" Margin="0,0,0,10"/>
+
+                    <!-- Legend -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <Rectangle Width="24" Height="3" Fill="#5A7EFF" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock Text="Alerts" FontSize="11" Foreground="#555" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Rectangle Width="24" Height="3" Fill="#E94560" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                        <TextBlock Text="Critical" FontSize="11" Foreground="#555" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Chart canvas -->
+                    <Border Background="#F8F9FF" CornerRadius="4" Padding="8">
+                        <Canvas Width="560" Height="100" ClipToBounds="True">
+                            <!-- Grid lines -->
+                            <Line X1="0" Y1="25"  X2="560" Y2="25"  Stroke="#E0E4EE" StrokeThickness="1" StrokeDashArray="4,3"/>
+                            <Line X1="0" Y1="50"  X2="560" Y2="50"  Stroke="#E0E4EE" StrokeThickness="1" StrokeDashArray="4,3"/>
+                            <Line X1="0" Y1="75"  X2="560" Y2="75"  Stroke="#E0E4EE" StrokeThickness="1" StrokeDashArray="4,3"/>
+                            <Line X1="0" Y1="100" X2="560" Y2="100" Stroke="#C0C8D8" StrokeThickness="1"/>
+                            <!-- Trend lines -->
+                            <Polyline Points="{Binding TrendLinePoints}"
+                                      Stroke="#5A7EFF" StrokeThickness="2"
+                                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                            <Polyline Points="{Binding CritLinePoints}"
+                                      Stroke="#E94560" StrokeThickness="1.5"
+                                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      StrokeDashArray="5,3"/>
+                        </Canvas>
+                    </Border>
+
+                    <!-- Tabular data below chart -->
+                    <DataGrid ItemsSource="{Binding DailyTrend}" Margin="0,12,0,0"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                              Background="White" RowBackground="White"
+                              AlternatingRowBackground="#FAFAFA" BorderThickness="0"
+                              MaxHeight="200">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Date"
+                                                Binding="{Binding Date, StringFormat={}{0:yyyy-MM-dd}}"
+                                                Width="120"/>
+                            <DataGridTextColumn Header="Alerts"   Binding="{Binding AlertCount}"    Width="100"/>
+                            <DataGridTextColumn Header="Critical" Binding="{Binding CriticalCount}" Width="100"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,101 @@
+<UserControl x:Class="PerSourceAntivirus.Gui.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24">
+            <TextBlock Text="Settings" FontSize="20" FontWeight="Bold"
+                       Foreground="#333" Margin="0,0,0,20"/>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="General" FontSize="15" FontWeight="SemiBold"
+                               Foreground="#333" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="YARA Rules Directory" FontSize="12"
+                               Foreground="#555" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding YaraRulesDirectory, UpdateSourceTrigger=PropertyChanged}"
+                             Padding="8,6" BorderBrush="#CCCCCC" BorderThickness="1"
+                             Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Quarantine Directory" FontSize="12"
+                               Foreground="#555" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding QuarantineDirectory, UpdateSourceTrigger=PropertyChanged}"
+                             Padding="8,6" BorderBrush="#CCCCCC" BorderThickness="1"
+                             Margin="0,0,0,4"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Scanning" FontSize="15" FontWeight="SemiBold"
+                               Foreground="#333" Margin="0,0,0,12"/>
+
+                    <CheckBox Content="Enable Real-Time Protection"
+                              IsChecked="{Binding RealtimeProtectionEnabled}"
+                              FontSize="13" Margin="0,0,0,12"/>
+
+                    <TextBlock Text="Max Scan Parallelism" FontSize="12"
+                               Foreground="#555" Margin="0,0,0,4"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <TextBox Width="80"
+                                 Text="{Binding ScanMaxParallelism, UpdateSourceTrigger=PropertyChanged}"
+                                 Padding="8,6" BorderBrush="#CCCCCC" BorderThickness="1"/>
+                        <TextBlock Text="threads" VerticalAlignment="Center" Margin="8,0,0,0"
+                                   Foreground="#888" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Network" FontSize="15" FontWeight="SemiBold"
+                               Foreground="#333" Margin="0,0,0,12"/>
+                    <CheckBox Content="Enable DNS Sinkhole"
+                              IsChecked="{Binding DnsSinkholeEnabled}"
+                              FontSize="13" Margin="0,0,0,4"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="SIEM" FontSize="15" FontWeight="SemiBold"
+                               Foreground="#333" Margin="0,0,0,12"/>
+                    <TextBlock Text="SIEM Protocol" FontSize="12"
+                               Foreground="#555" Margin="0,0,0,4"/>
+                    <ComboBox SelectedValue="{Binding SiemProtocol}" Width="160"
+                              HorizontalAlignment="Left" Padding="8,6">
+                        <ComboBoxItem Content="None"/>
+                        <ComboBoxItem Content="UDP"/>
+                        <ComboBoxItem Content="TCP"/>
+                    </ComboBox>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
+                    <TextBlock Text="Maintenance" FontSize="15" FontWeight="SemiBold"
+                               Foreground="#333" Margin="0,0,0,12"/>
+                    <TextBlock Text="Schedule a scan on next reboot (writes BootExecute registry entry)."
+                               FontSize="12" Foreground="#555" TextWrapping="Wrap"
+                               Margin="0,0,0,12"/>
+                    <Button Content="Schedule Scan on Next Reboot"
+                            Command="{Binding ScheduleRebootScanCommand}"
+                            HorizontalAlignment="Left" Padding="12,8"
+                            Background="#FFB24A" Foreground="White"
+                            BorderThickness="0" Cursor="Hand"/>
+                    <TextBlock Text="{Binding RebootScanStatus}" FontSize="12"
+                               Foreground="#555" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Margin="8,8,8,24">
+                <Button Content="Save Settings" Command="{Binding SaveCommand}"
+                        Padding="16,10"
+                        Background="{StaticResource AccentBrush}" Foreground="White"
+                        BorderThickness="0" Cursor="Hand" FontSize="14"/>
+                <TextBlock Text="{Binding SaveMessage}" VerticalAlignment="Center"
+                           Margin="12,0,0,0" Foreground="#4AFF8A" FontSize="13"/>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
