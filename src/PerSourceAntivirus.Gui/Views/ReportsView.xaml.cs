@@ -1,0 +1,12 @@
+﻿using System.Windows.Controls;
+
+namespace PerSourceAntivirus.Gui.Views;
+
+public partial class ReportsView
+{
+    public ReportsView()
+    {
+        InitializeComponent();
+    }
+}
+
