@@ -24,6 +24,15 @@ Environment:
 
 --*/
 
+/*
+   HVCI / Memory Integrity compatibility audit (item 30):
+   - All pool allocations use ExAllocatePool2 with POOL_FLAG_NON_PAGED (no POOL_FLAG_NON_PAGED_EXECUTE).
+   - No MmMapIoSpace, no PTE manipulation, no runtime code generation.
+   - All callbacks are statically linked — no function-pointer patching.
+   - Driver is compatible with Hypervisor-Protected Code Integrity (HVCI).
+   - To enforce HVCI: compile with /INTEGRITYCHECK linker flag and sign with EV cert.
+*/
+
 #include <fltKernel.h>
 #include <dontuse.h>
 #include <suppress.h>
@@ -66,7 +75,10 @@ typedef enum _PSAV_EVENT_TYPE {
     PsavEventProcessCreate    = 1,
     PsavEventProcessTerminate = 2,
     PsavEventImageLoad        = 3,
-    PsavEventHandleStripped   = 4,   /* ObCallback stripped access rights */
+    PsavEventHandleStripped        = 4,   /* ObCallback stripped access rights */
+    PsavEventUnsignedDriverLoad    = 5,   /* driver loaded from untrusted path */
+    PsavEventFltmcBlocked          = 6,   /* fltmc.exe unload attempt denied */
+    PsavEventSafeFolderViolation   = 7,   /* write to protected folder blocked */
 } PSAV_EVENT_TYPE;
 
 typedef struct _PSAV_KERNEL_EVENT {
@@ -84,6 +96,22 @@ typedef struct _PSAV_KERNEL_EVENT_REPLY {
     FILTER_REPLY_HEADER Header;    /* 12 bytes */
     ULONG Acknowledged;            /* always 1 */
 } PSAV_KERNEL_EVENT_REPLY, *PPSAV_KERNEL_EVENT_REPLY;
+
+/* --- Safe-folder port message structures --- */
+#define PSAV_SF_PATH_MAX 260
+
+typedef enum _PSAV_SF_CMD {
+    PsavSfAddFolder     = 1,
+    PsavSfRemoveFolder  = 2,
+    PsavSfAddProcess    = 3,
+    PsavSfRemoveProcess = 4,
+} PSAV_SF_CMD;
+
+/* Payload sent by user-mode via FilterSendMessage (no FILTER_MESSAGE_HEADER prefix) */
+typedef struct _PSAV_SF_PAYLOAD {
+    ULONG Command;
+    WCHAR Path[PSAV_SF_PATH_MAX];
+} PSAV_SF_PAYLOAD, *PPSAV_SF_PAYLOAD;
 
 #pragma pack(pop)
 
@@ -105,6 +133,20 @@ static FAST_MUTEX           g_EventClientPortLock;
 
 /* ObCallback registration handle */
 static PVOID                g_ObCallbackHandle   = NULL;
+
+/* Safe-folder port */
+static PFLT_PORT            g_SfServerPort       = NULL;
+static PFLT_PORT            g_SfClientPort       = NULL;
+static FAST_MUTEX           g_SfClientPortLock;
+
+/* Protected-path and whitelist tables */
+#define PSAV_SF_MAX_PROTECTED  32
+#define PSAV_SF_MAX_WHITELIST  32
+static WCHAR    g_SfProtectedPaths[PSAV_SF_MAX_PROTECTED][PSAV_SF_PATH_MAX];
+static ULONG    g_SfProtectedCount = 0;
+static WCHAR    g_SfWhitelistProcs[PSAV_SF_MAX_WHITELIST][64];
+static ULONG    g_SfWhitelistCount = 0;
+static FAST_MUTEX g_SfDataLock;
 
 /* Flat file-ID cache (non-paged pool, allocated in DriverEntry) */
 static PPSAV_CACHE_ENTRY    g_Cache              = NULL;
@@ -200,6 +242,40 @@ PsavObPreOperationCallback(
     _Inout_ POB_PRE_OPERATION_INFORMATION OperationInformation
     );
 
+FLT_PREOP_CALLBACK_STATUS
+PsavPreWrite(
+    _Inout_                        PFLT_CALLBACK_DATA    Data,
+    _In_                           PCFLT_RELATED_OBJECTS FltObjects,
+    _Flt_CompletionContext_Outptr_  PVOID                *CompletionContext
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+PsavSfPortConnect(
+    _In_  PFLT_PORT       ClientPort,
+    _In_  PVOID           ServerPortCookie,
+    _In_reads_bytes_opt_(SizeOfContext) PVOID ConnectionContext,
+    _In_  ULONG           SizeOfContext,
+    _Outptr_result_maybenull_ PVOID *ConnectionPortCookie
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+VOID
+PsavSfPortDisconnect(
+    _In_opt_ PVOID ConnectionCookie
+    );
+
+_IRQL_requires_max_(PASSIVE_LEVEL)
+NTSTATUS
+PsavSfMessageNotify(
+    _In_opt_                                                        PVOID  PortCookie,
+    _In_reads_bytes_opt_(InputBufferLength)                         PVOID  InputBuffer,
+    _In_                                                            ULONG  InputBufferLength,
+    _Out_writes_bytes_to_opt_(OutputBufferLength, *ReturnOutputBufferLength) PVOID OutputBuffer,
+    _In_                                                            ULONG  OutputBufferLength,
+    _Out_                                                           PULONG ReturnOutputBufferLength
+    );
+
 /* -----------------------------------------------------------------------
    Filter registration
    --------------------------------------------------------------------- */
@@ -208,6 +284,12 @@ static const FLT_OPERATION_REGISTRATION g_Callbacks[] = {
         IRP_MJ_CREATE,
         0,
         PsavPreCreate,
+        NULL
+    },
+    {
+        IRP_MJ_WRITE,
+        0,
+        PsavPreWrite,
         NULL
     },
     { IRP_MJ_OPERATION_END }
@@ -297,6 +379,70 @@ PsavShouldSkipExtension(
 }
 
 /* -----------------------------------------------------------------------
+   Safe-folder helpers
+   --------------------------------------------------------------------- */
+
+_IRQL_requires_max_(APC_LEVEL)
+static BOOLEAN
+PsavSfIsPathProtected(
+    _In_ PUNICODE_STRING FilePath
+    )
+{
+    ULONG i;
+    ExAcquireFastMutex(&g_SfDataLock);
+    for (i = 0; i < g_SfProtectedCount; i++) {
+        UNICODE_STRING protPath;
+        RtlInitUnicodeString(&protPath, g_SfProtectedPaths[i]);
+        if (FilePath->Length >= protPath.Length) {
+            UNICODE_STRING prefix;
+            prefix.Buffer        = FilePath->Buffer;
+            prefix.Length        = protPath.Length;
+            prefix.MaximumLength = protPath.Length;
+            if (RtlEqualUnicodeString(&prefix, &protPath, TRUE)) {
+                ExReleaseFastMutex(&g_SfDataLock);
+                return TRUE;
+            }
+        }
+    }
+    ExReleaseFastMutex(&g_SfDataLock);
+    return FALSE;
+}
+
+_IRQL_requires_max_(APC_LEVEL)
+static BOOLEAN
+PsavSfIsProcessWhitelisted(
+    _In_opt_ PCHAR ImageName8
+    )
+{
+    ULONG i;
+    if (ImageName8 == NULL) return FALSE;
+
+    ExAcquireFastMutex(&g_SfDataLock);
+    for (i = 0; i < g_SfWhitelistCount; i++) {
+        CHAR stored[64];
+        ULONG k;
+        PCHAR a, b;
+        BOOLEAN match;
+
+        for (k = 0; k < 63 && g_SfWhitelistProcs[i][k] != 0; k++)
+            stored[k] = (CHAR)g_SfWhitelistProcs[i][k];
+        stored[k] = 0;
+
+        a = ImageName8; b = stored; match = TRUE;
+        while (*a || *b) {
+            CHAR ca = (*a >= 'A' && *a <= 'Z') ? (CHAR)(*a + 32) : *a;
+            CHAR cb = (*b >= 'A' && *b <= 'Z') ? (CHAR)(*b + 32) : *b;
+            if (ca != cb) { match = FALSE; break; }
+            if (*a) a++;
+            if (*b) b++;
+        }
+        if (match) { ExReleaseFastMutex(&g_SfDataLock); return TRUE; }
+    }
+    ExReleaseFastMutex(&g_SfDataLock);
+    return FALSE;
+}
+
+/* -----------------------------------------------------------------------
    PsavSendKernelEvent  —  helper to fire-and-forget an event to user mode
    Runs at PASSIVE_LEVEL or APC_LEVEL (kernel callbacks are in that range).
    Uses a 500 ms timeout so a non-listening client doesn't stall the kernel.
@@ -370,6 +516,8 @@ DriverEntry(
     FltInitializePushLock(&g_CacheLock);
     ExInitializeFastMutex(&g_ClientPortLock);
     ExInitializeFastMutex(&g_EventClientPortLock);
+    ExInitializeFastMutex(&g_SfClientPortLock);
+    ExInitializeFastMutex(&g_SfDataLock);
 
     /* Register the minifilter */
     status = FltRegisterFilter(DriverObject, &g_FilterRegistration, &g_FilterHandle);
@@ -445,6 +593,33 @@ DriverEntry(
 
     if (!NT_SUCCESS(status)) {
         goto Cleanup;
+    }
+
+    /* ----------------------------------------------------------------
+       Create \PSAVSafeFolderPort  (user→kernel config for write-blocking)
+       ---------------------------------------------------------------- */
+    status = FltBuildDefaultSecurityDescriptor(&sd, FLT_PORT_ALL_ACCESS);
+    if (NT_SUCCESS(status)) {
+        RtlInitUnicodeString(&portName, L"\\PSAVSafeFolderPort");
+        InitializeObjectAttributes(&oa,
+                                   &portName,
+                                   OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE,
+                                   NULL,
+                                   sd);
+
+        /* Non-fatal: if this port fails the rest of the driver still works */
+        FltCreateCommunicationPort(
+            g_FilterHandle,
+            &g_SfServerPort,
+            &oa,
+            NULL,
+            PsavSfPortConnect,
+            PsavSfPortDisconnect,
+            PsavSfMessageNotify,
+            1);
+
+        FltFreeSecurityDescriptor(sd);
+        sd = NULL;
     }
 
     /* ----------------------------------------------------------------
@@ -534,7 +709,12 @@ PsavUnload(
         g_ObCallbackHandle = NULL;
     }
 
-    /* Close event port first, then scan port */
+    /* Close ports in reverse order: safe-folder, event, scan */
+    if (g_SfServerPort != NULL) {
+        FltCloseCommunicationPort(g_SfServerPort);
+        g_SfServerPort = NULL;
+    }
+
     if (g_EventServerPort != NULL) {
         FltCloseCommunicationPort(g_EventServerPort);
         g_EventServerPort = NULL;
@@ -666,6 +846,63 @@ PsavProcessNotifyCallbackEx(
     evt.ProcessId = HandleToULong(ProcessId);
 
     if (CreateInfo != NULL) {
+        /* Block fltmc.exe unload attempts targeting our filter */
+        if (CreateInfo->ImageFileName != NULL &&
+            CreateInfo->ImageFileName->Length > 0 &&
+            CreateInfo->CommandLine  != NULL &&
+            CreateInfo->CommandLine->Buffer != NULL)
+        {
+            UNICODE_STRING fltmcName;
+            RtlInitUnicodeString(&fltmcName, L"fltmc.exe");
+
+            if (CreateInfo->ImageFileName->Length >= fltmcName.Length) {
+                UNICODE_STRING tail;
+                ULONG tailOff = (CreateInfo->ImageFileName->Length - fltmcName.Length) / sizeof(WCHAR);
+                tail.Buffer        = CreateInfo->ImageFileName->Buffer + tailOff;
+                tail.Length        = fltmcName.Length;
+                tail.MaximumLength = fltmcName.Length;
+
+                if (RtlEqualUnicodeString(&tail, &fltmcName, TRUE)) {
+                    UNICODE_STRING unloadStr;
+                    ULONG cmdChars, searchChars, k;
+                    BOOLEAN blocked = FALSE;
+
+                    RtlInitUnicodeString(&unloadStr, L"unload");
+                    cmdChars    = CreateInfo->CommandLine->Length / sizeof(WCHAR);
+                    searchChars = unloadStr.Length / sizeof(WCHAR);
+
+                    for (k = 0; k + searchChars <= cmdChars; k++) {
+                        UNICODE_STRING sub;
+                        sub.Buffer        = CreateInfo->CommandLine->Buffer + k;
+                        sub.Length        = unloadStr.Length;
+                        sub.MaximumLength = unloadStr.Length;
+                        if (RtlEqualUnicodeString(&sub, &unloadStr, TRUE)) {
+                            blocked = TRUE;
+                            break;
+                        }
+                    }
+
+                    if (blocked) {
+                        PSAV_KERNEL_EVENT bevt = {0};
+                        USHORT copyChars;
+
+                        CreateInfo->CreationStatus = STATUS_ACCESS_DENIED;
+
+                        bevt.EventType = PsavEventFltmcBlocked;
+                        bevt.ProcessId = HandleToULong(ProcessId);
+                        copyChars = CreateInfo->CommandLine->Length / sizeof(WCHAR);
+                        if (copyChars >= ARRAYSIZE(bevt.CommandLine))
+                            copyChars = ARRAYSIZE(bevt.CommandLine) - 1;
+                        RtlCopyMemory(bevt.CommandLine,
+                                      CreateInfo->CommandLine->Buffer,
+                                      copyChars * sizeof(WCHAR));
+                        PsavSendKernelEvent(&bevt);
+                        return;
+                    }
+                }
+            }
+        }
+
         /* Process create */
         evt.EventType        = PsavEventProcessCreate;
         evt.ParentProcessId  = HandleToULong(CreateInfo->ParentProcessId);
@@ -740,6 +977,46 @@ PsavLoadImageNotifyCallback(
     }
 
     PsavSendKernelEvent(&evt);
+
+    /* Detect kernel drivers loaded from non-trusted paths (item 26) */
+    if (ImageInfo != NULL && ImageInfo->SystemModeImage &&
+        FullImageName != NULL && FullImageName->Length > 0)
+    {
+        static const UNICODE_STRING g_TrustedPfx[] = {
+            RTL_CONSTANT_STRING(L"\\Windows\\System32\\"),
+            RTL_CONSTANT_STRING(L"\\Windows\\SysWOW64\\"),
+            RTL_CONSTANT_STRING(L"\\SystemRoot\\System32\\"),
+        };
+        BOOLEAN trusted = FALSE;
+        ULONG   ti;
+
+        for (ti = 0; ti < ARRAYSIZE(g_TrustedPfx); ti++) {
+            if (FullImageName->Length >= g_TrustedPfx[ti].Length) {
+                UNICODE_STRING pfx;
+                pfx.Buffer        = FullImageName->Buffer;
+                pfx.Length        = g_TrustedPfx[ti].Length;
+                pfx.MaximumLength = g_TrustedPfx[ti].Length;
+                if (RtlEqualUnicodeString(&pfx, &g_TrustedPfx[ti], TRUE)) {
+                    trusted = TRUE;
+                    break;
+                }
+            }
+        }
+
+        if (!trusted) {
+            PSAV_KERNEL_EVENT uevt = {0};
+            USHORT copyChars2;
+
+            uevt.EventType = PsavEventUnsignedDriverLoad;
+            uevt.ProcessId = HandleToULong(ProcessId);
+            uevt.ImageBase = (ULONGLONG)(ULONG_PTR)ImageInfo->ImageBase;
+            copyChars2 = FullImageName->Length / sizeof(WCHAR);
+            if (copyChars2 >= ARRAYSIZE(uevt.ImagePath))
+                copyChars2 = ARRAYSIZE(uevt.ImagePath) - 1;
+            RtlCopyMemory(uevt.ImagePath, FullImageName->Buffer, copyChars2 * sizeof(WCHAR));
+            PsavSendKernelEvent(&uevt);
+        }
+    }
 }
 
 /* -----------------------------------------------------------------------
@@ -798,6 +1075,213 @@ PsavObPreOperationCallback(
     return OB_PREOP_SUCCESS;
 
 #undef PSAV_INJECT_MASK
+}
+
+/* -----------------------------------------------------------------------
+   PsavPreWrite  —  write-blocking for safe folders (item 27)
+   --------------------------------------------------------------------- */
+_Use_decl_annotations_
+FLT_PREOP_CALLBACK_STATUS
+PsavPreWrite(
+    _Inout_                        PFLT_CALLBACK_DATA    Data,
+    _In_                           PCFLT_RELATED_OBJECTS FltObjects,
+    _Flt_CompletionContext_Outptr_  PVOID                *CompletionContext
+    )
+{
+    NTSTATUS                   status;
+    PFLT_FILE_NAME_INFORMATION nameInfo = NULL;
+    PEPROCESS                  callerProc;
+    PCHAR                      imageName;
+
+    UNREFERENCED_PARAMETER(FltObjects);
+    UNREFERENCED_PARAMETER(CompletionContext);
+
+    /* Skip kernel-mode requestors */
+    if (Data->RequestorMode == KernelMode)
+        return FLT_PREOP_SUCCESS_NO_CALLBACK;
+
+    /* Skip if no protected paths configured */
+    if (g_SfProtectedCount == 0)
+        return FLT_PREOP_SUCCESS_NO_CALLBACK;
+
+    status = FltGetFileNameInformation(
+                Data,
+                FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT,
+                &nameInfo);
+    if (!NT_SUCCESS(status))
+        return FLT_PREOP_SUCCESS_NO_CALLBACK;
+
+    status = FltParseFileNameInformation(nameInfo);
+    if (!NT_SUCCESS(status)) {
+        FltReleaseFileNameInformation(nameInfo);
+        return FLT_PREOP_SUCCESS_NO_CALLBACK;
+    }
+
+    if (PsavSfIsPathProtected(&nameInfo->Name)) {
+        /* Check if calling process is whitelisted */
+        callerProc = IoThreadToProcess(Data->Thread);
+        imageName  = PsGetProcessImageFileName(callerProc);
+
+        if (!PsavSfIsProcessWhitelisted(imageName)) {
+            PSAV_KERNEL_EVENT vevt = {0};
+            USHORT            copyChars;
+
+            /* Block the write */
+            Data->IoStatus.Status      = STATUS_ACCESS_DENIED;
+            Data->IoStatus.Information = 0;
+
+            /* Notify user mode */
+            vevt.EventType = PsavEventSafeFolderViolation;
+            vevt.ProcessId = HandleToULong(PsGetCurrentProcessId());
+            copyChars      = nameInfo->Name.Length / sizeof(WCHAR);
+            if (copyChars >= ARRAYSIZE(vevt.ImagePath))
+                copyChars = ARRAYSIZE(vevt.ImagePath) - 1;
+            RtlCopyMemory(vevt.ImagePath, nameInfo->Name.Buffer, copyChars * sizeof(WCHAR));
+            PsavSendKernelEvent(&vevt);
+
+            FltReleaseFileNameInformation(nameInfo);
+            return FLT_PREOP_COMPLETE;
+        }
+    }
+
+    FltReleaseFileNameInformation(nameInfo);
+    return FLT_PREOP_SUCCESS_NO_CALLBACK;
+}
+
+/* -----------------------------------------------------------------------
+   Safe-folder port connect / disconnect / message-notify
+   --------------------------------------------------------------------- */
+_Use_decl_annotations_
+NTSTATUS
+PsavSfPortConnect(
+    _In_  PFLT_PORT ClientPort,
+    _In_  PVOID     ServerPortCookie,
+    _In_reads_bytes_opt_(SizeOfContext) PVOID ConnectionContext,
+    _In_  ULONG     SizeOfContext,
+    _Outptr_result_maybenull_ PVOID *ConnectionPortCookie
+    )
+{
+    UNREFERENCED_PARAMETER(ServerPortCookie);
+    UNREFERENCED_PARAMETER(ConnectionContext);
+    UNREFERENCED_PARAMETER(SizeOfContext);
+
+    *ConnectionPortCookie = NULL;
+    ExAcquireFastMutex(&g_SfClientPortLock);
+    g_SfClientPort = ClientPort;
+    ExReleaseFastMutex(&g_SfClientPortLock);
+    return STATUS_SUCCESS;
+}
+
+_Use_decl_annotations_
+VOID
+PsavSfPortDisconnect(
+    _In_opt_ PVOID ConnectionCookie
+    )
+{
+    UNREFERENCED_PARAMETER(ConnectionCookie);
+
+    ExAcquireFastMutex(&g_SfClientPortLock);
+    if (g_SfClientPort != NULL) {
+        FltCloseClientPort(g_FilterHandle, &g_SfClientPort);
+        g_SfClientPort = NULL;
+    }
+    ExReleaseFastMutex(&g_SfClientPortLock);
+}
+
+_Use_decl_annotations_
+NTSTATUS
+PsavSfMessageNotify(
+    _In_opt_ PVOID  PortCookie,
+    _In_reads_bytes_opt_(InputBufferLength) PVOID InputBuffer,
+    _In_     ULONG  InputBufferLength,
+    _Out_writes_bytes_to_opt_(OutputBufferLength, *ReturnOutputBufferLength) PVOID OutputBuffer,
+    _In_     ULONG  OutputBufferLength,
+    _Out_    PULONG ReturnOutputBufferLength
+    )
+{
+    PPSAV_SF_PAYLOAD payload;
+    PWCHAR           path;
+    ULONG            cmd, idx, pathLen;
+
+    UNREFERENCED_PARAMETER(PortCookie);
+    UNREFERENCED_PARAMETER(OutputBuffer);
+    UNREFERENCED_PARAMETER(OutputBufferLength);
+
+    *ReturnOutputBufferLength = 0;
+
+    /* Minimum: ULONG command + at least 1 WCHAR of path */
+    if (InputBuffer == NULL ||
+        InputBufferLength < sizeof(ULONG) + sizeof(WCHAR))
+        return STATUS_INVALID_PARAMETER;
+
+    payload = (PPSAV_SF_PAYLOAD)InputBuffer;
+    cmd  = payload->Command;
+    path = payload->Path;
+
+    /* Safety: ensure path is null-terminated within buffer */
+    pathLen = 0;
+    {
+        ULONG maxChars = (InputBufferLength - sizeof(ULONG)) / sizeof(WCHAR);
+        if (maxChars > PSAV_SF_PATH_MAX - 1) maxChars = PSAV_SF_PATH_MAX - 1;
+        while (pathLen < maxChars && path[pathLen] != 0) pathLen++;
+        path[pathLen] = 0;
+    }
+
+    ExAcquireFastMutex(&g_SfDataLock);
+
+    switch (cmd) {
+    case PsavSfAddFolder:
+        if (g_SfProtectedCount < PSAV_SF_MAX_PROTECTED) {
+            idx = g_SfProtectedCount++;
+            RtlCopyMemory(g_SfProtectedPaths[idx], path, pathLen * sizeof(WCHAR));
+            g_SfProtectedPaths[idx][pathLen] = 0;
+        }
+        break;
+
+    case PsavSfRemoveFolder:
+        for (idx = 0; idx < g_SfProtectedCount; idx++) {
+            UNICODE_STRING s1, s2;
+            RtlInitUnicodeString(&s1, g_SfProtectedPaths[idx]);
+            RtlInitUnicodeString(&s2, path);
+            if (RtlEqualUnicodeString(&s1, &s2, TRUE)) {
+                if (idx + 1 < g_SfProtectedCount)
+                    RtlMoveMemory(&g_SfProtectedPaths[idx],
+                                  &g_SfProtectedPaths[idx + 1],
+                                  (g_SfProtectedCount - idx - 1)
+                                      * PSAV_SF_PATH_MAX * sizeof(WCHAR));
+                g_SfProtectedCount--;
+                break;
+            }
+        }
+        break;
+
+    case PsavSfAddProcess:
+        if (g_SfWhitelistCount < PSAV_SF_MAX_WHITELIST && pathLen < 64) {
+            idx = g_SfWhitelistCount++;
+            RtlCopyMemory(g_SfWhitelistProcs[idx], path, pathLen * sizeof(WCHAR));
+            g_SfWhitelistProcs[idx][pathLen] = 0;
+        }
+        break;
+
+    case PsavSfRemoveProcess:
+        for (idx = 0; idx < g_SfWhitelistCount; idx++) {
+            UNICODE_STRING s1, s2;
+            RtlInitUnicodeString(&s1, g_SfWhitelistProcs[idx]);
+            RtlInitUnicodeString(&s2, path);
+            if (RtlEqualUnicodeString(&s1, &s2, TRUE)) {
+                if (idx + 1 < g_SfWhitelistCount)
+                    RtlMoveMemory(&g_SfWhitelistProcs[idx],
+                                  &g_SfWhitelistProcs[idx + 1],
+                                  (g_SfWhitelistCount - idx - 1) * 64 * sizeof(WCHAR));
+                g_SfWhitelistCount--;
+                break;
+            }
+        }
+        break;
+    }
+
+    ExReleaseFastMutex(&g_SfDataLock);
+    return STATUS_SUCCESS;
 }
 
 /* -----------------------------------------------------------------------
