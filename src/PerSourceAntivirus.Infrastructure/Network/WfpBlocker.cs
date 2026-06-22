@@ -8,15 +8,22 @@ public sealed class WfpBlocker : IWfpBlocker, IDisposable
 {
     // ── WFP layer / condition GUIDs ───────────────────────────────────────────
     // FWPM_LAYER_ALE_AUTH_CONNECT_V4
-    private static readonly Guid LayerConnectV4   = new("c38d57d1-05a7-4c33-904f-7fbceee60e82");
+    private static readonly Guid LayerConnectV4    = new("c38d57d1-05a7-4c33-904f-7fbceee60e82");
     // FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V4
     private static readonly Guid LayerRecvAcceptV4 = new("e1cd9fe7-f4b5-4273-96c0-592e487b8650");
-    // FWPM_CONDITION_IP_REMOTE_ADDRESS
-    private static readonly Guid CondRemoteAddr   = new("b235ae9a-1d64-49b8-a44c-5ff3d9095045");
+    // FWPM_LAYER_ALE_AUTH_CONNECT_V6
+    private static readonly Guid LayerConnectV6    = new("4a72393b-7b55-493c-b3eb-d9e11cd3f8df");
+    // FWPM_LAYER_ALE_AUTH_RECV_ACCEPT_V6
+    private static readonly Guid LayerRecvAcceptV6 = new("e1cd9fe7-f4b5-4273-96c0-592e487b8651");
+    // FWPM_CONDITION_IP_REMOTE_ADDRESS (shared for v4 and v6)
+    private static readonly Guid CondRemoteAddr    = new("b235ae9a-1d64-49b8-a44c-5ff3d9095045");
     // FWPM_CONDITION_IP_LOCAL_ADDRESS (for inbound accept layer)
-    private static readonly Guid CondLocalAddr    = new("d9ee00de-c1ef-4617-bfe3-ffd8f5a08957");
+    private static readonly Guid CondLocalAddr     = new("d9ee00de-c1ef-4617-bfe3-ffd8f5a08957");
     // FWPM_SUBLAYER_PSAV (a fresh GUID — we register our own sublayer)
-    private static readonly Guid PsavSubLayer     = new("3a6b1a2c-9d4e-4f5a-8e7b-1c2d3e4f5a6b");
+    private static readonly Guid PsavSubLayer      = new("3a6b1a2c-9d4e-4f5a-8e7b-1c2d3e4f5a6b");
+
+    // FWP_DATA_TYPE for IPv6 (FWP_BYTE_ARRAY16)
+    private const uint FwpByteArray16 = 14;
 
     // ── FWP constants ─────────────────────────────────────────────────────────
     private const uint FwpEmpty     = 0;
@@ -153,7 +160,10 @@ public sealed class WfpBlocker : IWfpBlocker, IDisposable
             try
             {
                 EnsureEngine();
-                var (outId, inId) = AddIpV4Filters(ipAddress, reason);
+                var parsed = System.Net.IPAddress.Parse(ipAddress);
+                var (outId, inId) = parsed.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
+                    ? AddIpV6Filters(ipAddress, reason)
+                    : AddIpV4Filters(ipAddress, reason);
                 _active[ipAddress] = (outId, inId);
                 return Task.FromResult(new WfpBlockResult(true, outId, inId));
             }
@@ -250,6 +260,75 @@ public sealed class WfpBlocker : IWfpBlocker, IDisposable
         {
             Marshal.FreeHGlobal(namePtr);
             Marshal.FreeHGlobal(descPtr);
+        }
+    }
+
+    private unsafe (ulong outId, ulong inId) AddIpV6Filters(string ipAddress, string reason)
+    {
+        if (!System.Net.IPAddress.TryParse(ipAddress, out var parsed) ||
+            parsed.AddressFamily != System.Net.Sockets.AddressFamily.InterNetworkV6)
+            throw new ArgumentException($"Invalid IPv6 address: {ipAddress}");
+
+        var ipBytes = parsed.GetAddressBytes(); // 16 bytes, network order
+
+        var namePtr = Marshal.StringToHGlobalUni($"PSAV block {ipAddress}");
+        var descPtr = Marshal.StringToHGlobalUni(string.IsNullOrEmpty(reason) ? "PerSourceAntivirus block" : reason);
+        var addrPtr = Marshal.AllocHGlobal(16);
+        try
+        {
+            Marshal.Copy(ipBytes, 0, addrPtr, 16);
+
+            // FwpValue0 for IPv6: Type = FWP_BYTE_ARRAY16, Value = pointer to 16-byte array
+            var condition = new FwpmFilterCondition0
+            {
+                FieldKey   = CondRemoteAddr,
+                MatchType  = FwpMatchEqual,
+                ConditionValue = new FwpValue0 { Type = FwpByteArray16, Value = (ulong)addrPtr }
+            };
+
+            ulong outId, inId;
+
+            // Outbound block (IPv6 connect layer)
+            FwpmTransactionBegin0(_engine, 0);
+            var filterOut = new FwpmFilter0
+            {
+                FilterKey        = Guid.NewGuid(),
+                DisplayData      = new FwpmDisplayData0 { Name = namePtr, Description = descPtr },
+                LayerKey         = LayerConnectV6,
+                SubLayerKey      = PsavSubLayer,
+                NumFilterConditions = 1,
+                FilterCondition  = (nint)(&condition),
+                Action           = new FwpmAction0 { Type = FwpActionBlock },
+                Weight           = new FwpValue0 { Type = FwpEmpty }
+            };
+            var hr = FwpmFilterAdd0(_engine, &filterOut, nint.Zero, out outId);
+            if (hr != 0) { FwpmTransactionAbort0(_engine); throw new InvalidOperationException($"FwpmFilterAdd0 (IPv6 out) failed: 0x{hr:X8}"); }
+            FwpmTransactionCommit0(_engine);
+
+            // Inbound block (IPv6 recv_accept layer)
+            FwpmTransactionBegin0(_engine, 0);
+            var filterIn = new FwpmFilter0
+            {
+                FilterKey        = Guid.NewGuid(),
+                DisplayData      = new FwpmDisplayData0 { Name = namePtr, Description = descPtr },
+                LayerKey         = LayerRecvAcceptV6,
+                SubLayerKey      = PsavSubLayer,
+                NumFilterConditions = 1,
+                FilterCondition  = (nint)(&condition),
+                Action           = new FwpmAction0 { Type = FwpActionBlock },
+                Weight           = new FwpValue0 { Type = FwpEmpty }
+            };
+            hr = FwpmFilterAdd0(_engine, &filterIn, nint.Zero, out inId);
+            if (hr != 0) { FwpmTransactionAbort0(_engine); throw new InvalidOperationException($"FwpmFilterAdd0 (IPv6 in) failed: 0x{hr:X8}"); }
+            FwpmTransactionCommit0(_engine);
+
+            return (outId, inId);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(namePtr);
+            Marshal.FreeHGlobal(descPtr);
+            Marshal.FreeHGlobal(addrPtr);
         }
     }
 
