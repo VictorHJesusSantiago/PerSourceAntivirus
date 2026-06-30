@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.DependencyInjection;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
 using SysProcess = System.Diagnostics.Process;
@@ -9,7 +10,7 @@ namespace PerSourceAntivirus.Infrastructure.Privacy;
 [SupportedOSPlatform("windows")]
 public sealed class ScreenLockerDetector : IScreenLockerDetector
 {
-    private readonly IScreenLockerAlertRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private volatile bool _running;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<int, DateTime> _recentAlerts = new();
 
@@ -52,9 +53,21 @@ public sealed class ScreenLockerDetector : IScreenLockerDetector
 
     public event EventHandler<ScreenLockerAlertEventArgs>? AlertDetected;
 
-    public ScreenLockerDetector(IScreenLockerAlertRepository repository)
+    public ScreenLockerDetector(IServiceScopeFactory scopeFactory)
     {
-        _repository = repository;
+        _scopeFactory = scopeFactory;
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from monitor threads.
+    private async Task PersistAsync(ScreenLockerAlert alert)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IScreenLockerAlertRepository>();
+            await repository.AddAsync(alert).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
@@ -172,7 +185,7 @@ public sealed class ScreenLockerDetector : IScreenLockerDetector
             DetectedAtUtc = now
         };
 
-        try { _repository.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+        _ = PersistAsync(alert);
         AlertDetected?.Invoke(this, new ScreenLockerAlertEventArgs(alert));
     }
 }

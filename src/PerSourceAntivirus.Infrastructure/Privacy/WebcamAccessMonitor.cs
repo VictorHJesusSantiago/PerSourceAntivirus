@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
@@ -8,7 +9,7 @@ namespace PerSourceAntivirus.Infrastructure.Privacy;
 [SupportedOSPlatform("windows")]
 public sealed class WebcamAccessMonitor : IWebcamAccessMonitor
 {
-    private readonly IWebcamAccessRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private volatile bool _running;
     private readonly Dictionary<string, long> _lastSeenStartTimes = new(StringComparer.OrdinalIgnoreCase);
 
@@ -17,9 +18,21 @@ public sealed class WebcamAccessMonitor : IWebcamAccessMonitor
 
     public event EventHandler<WebcamAccessEventArgs>? AlertDetected;
 
-    public WebcamAccessMonitor(IWebcamAccessRepository repository)
+    public WebcamAccessMonitor(IServiceScopeFactory scopeFactory)
     {
-        _repository = repository;
+        _scopeFactory = scopeFactory;
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; events are raised from monitor threads.
+    private async Task PersistAsync(WebcamAccessEvent accessEvent)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IWebcamAccessRepository>();
+            await repository.AddAsync(accessEvent).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
@@ -103,7 +116,7 @@ public sealed class WebcamAccessMonitor : IWebcamAccessMonitor
                     DetectedAtUtc = DateTime.UtcNow
                 };
 
-                try { _repository.AddAsync(accessEvent).GetAwaiter().GetResult(); } catch { }
+                _ = PersistAsync(accessEvent);
                 AlertDetected?.Invoke(this, new WebcamAccessEventArgs(accessEvent));
             }
         }

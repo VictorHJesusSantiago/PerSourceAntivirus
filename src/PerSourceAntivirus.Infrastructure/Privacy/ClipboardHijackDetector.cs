@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.DependencyInjection;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
 
@@ -9,7 +10,7 @@ namespace PerSourceAntivirus.Infrastructure.Privacy;
 [SupportedOSPlatform("windows")]
 public sealed class ClipboardHijackDetector : IClipboardHijackDetector
 {
-    private readonly IClipboardHijackAlertRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private volatile bool _running;
     private string _lastContent = string.Empty;
 
@@ -39,9 +40,21 @@ public sealed class ClipboardHijackDetector : IClipboardHijackDetector
 
     public event EventHandler<ClipboardHijackAlertEventArgs>? AlertDetected;
 
-    public ClipboardHijackDetector(IClipboardHijackAlertRepository repository)
+    public ClipboardHijackDetector(IServiceScopeFactory scopeFactory)
     {
-        _repository = repository;
+        _scopeFactory = scopeFactory;
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from monitor threads.
+    private async Task PersistAsync(ClipboardHijackAlert alert)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IClipboardHijackAlertRepository>();
+            await repository.AddAsync(alert).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
@@ -121,7 +134,7 @@ public sealed class ClipboardHijackDetector : IClipboardHijackDetector
                 DetectedAtUtc = DateTime.UtcNow
             };
 
-            try { _repository.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+            _ = PersistAsync(alert);
             AlertDetected?.Invoke(this, new ClipboardHijackAlertEventArgs(alert));
             break;
         }

@@ -1,4 +1,5 @@
 using System.Runtime.Versioning;
+using Microsoft.Extensions.DependencyInjection;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
 using SysProcess = System.Diagnostics.Process;
@@ -8,7 +9,7 @@ namespace PerSourceAntivirus.Infrastructure.Privacy;
 [SupportedOSPlatform("windows")]
 public sealed class ScreenCaptureDetector : IScreenCaptureDetector
 {
-    private readonly IScreenCaptureAlertRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private volatile bool _running;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<int, DateTime> _recentAlerts = new();
 
@@ -29,9 +30,21 @@ public sealed class ScreenCaptureDetector : IScreenCaptureDetector
 
     public event EventHandler<ScreenCaptureAlertEventArgs>? AlertDetected;
 
-    public ScreenCaptureDetector(IScreenCaptureAlertRepository repository)
+    public ScreenCaptureDetector(IServiceScopeFactory scopeFactory)
     {
-        _repository = repository;
+        _scopeFactory = scopeFactory;
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from monitor threads.
+    private async Task PersistAsync(ScreenCaptureAlert alert)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IScreenCaptureAlertRepository>();
+            await repository.AddAsync(alert).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
@@ -113,7 +126,7 @@ public sealed class ScreenCaptureDetector : IScreenCaptureDetector
             DetectedAtUtc = now
         };
 
-        try { _repository.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+        _ = PersistAsync(alert);
         AlertDetected?.Invoke(this, new ScreenCaptureAlertEventArgs(alert));
     }
 
