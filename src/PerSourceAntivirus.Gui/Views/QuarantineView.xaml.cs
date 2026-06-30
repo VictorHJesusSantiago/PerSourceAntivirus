@@ -11,8 +11,19 @@ public partial class QuarantineView
 
     private async void OnRestoreClick(object sender, System.Windows.RoutedEventArgs e)
     {
-        if (DataContext is QuarantineViewModel vm)
-            await vm.RestoreSelectedAsync();
+        try
+        {
+            if (DataContext is QuarantineViewModel vm)
+                await vm.RestoreSelectedAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Restore failed: {ex.Message}",
+                "Error",
+                System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Error);
+        }
     }
 }
 

@@ -51,6 +51,10 @@ namespace PerSourceAntivirus.Infrastructure;
 
 public static class DependencyInjection
 {
+    // Shared HttpClient for services that do not own their own lifecycle.
+    // Using a single instance prevents socket exhaustion from short-lived service scopes.
+    private static readonly HttpClient SharedHttpClient = new();
+
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddDbContext<AppDbContext>(options =>
@@ -338,7 +342,7 @@ public static class DependencyInjection
         services.AddScoped<IStixFeedImporter>(sp => new PerSourceAntivirus.Infrastructure.ThreatIntel.StixFeedImporter(
             sp.GetRequiredService<IStixFeedSourceRepository>(),
             sp.GetRequiredService<IStixIocRepository>(),
-            new HttpClient()));
+            SharedHttpClient));
         services.AddScoped<IAlertTriageRepository, PerSourceAntivirus.Infrastructure.Investigation.AlertTriageRepository>();
         services.AddScoped<IIncidentRepository, PerSourceAntivirus.Infrastructure.Investigation.IncidentRepository>();
         services.AddScoped<IAlertTriageService, PerSourceAntivirus.Infrastructure.Investigation.AlertTriageService>();

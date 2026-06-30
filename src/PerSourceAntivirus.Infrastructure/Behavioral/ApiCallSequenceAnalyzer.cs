@@ -52,7 +52,7 @@ public sealed class ApiCallSequenceAnalyzer : IApiCallSequenceAnalyzer
                         break;
                     try
                     {
-                        AnalyzeProcess(proc);
+                        await AnalyzeProcessAsync(proc).ConfigureAwait(false);
                     }
                     catch { }
                     finally { proc.Dispose(); }
@@ -64,7 +64,7 @@ public sealed class ApiCallSequenceAnalyzer : IApiCallSequenceAnalyzer
         }
     }
 
-    private void AnalyzeProcess(SysProcess proc)
+    private async Task AnalyzeProcessAsync(SysProcess proc)
     {
         if (proc.Id <= 4)
             return;
@@ -116,7 +116,7 @@ public sealed class ApiCallSequenceAnalyzer : IApiCallSequenceAnalyzer
             {
                 using var scope = _scopeFactory.CreateScope();
                 var repo = scope.ServiceProvider.GetRequiredService<IApiCallSequenceAlertRepository>();
-                repo.AddAsync(alert, CancellationToken.None).GetAwaiter().GetResult();
+                await repo.AddAsync(alert, CancellationToken.None).ConfigureAwait(false);
             }
             catch { }
 
