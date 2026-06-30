@@ -40,9 +40,13 @@ public sealed class FeodoTrackerUpdater : IThreatFeedUpdater, IDisposable
     }
 
     // CSV columns: first_seen_utc,dst_ip,dst_port,... — comment lines start with '#'.
+    // The feed is fetched over HTTP from an external source, so each candidate is validated as a
+    // real IP address before it is persisted: a malformed/MITM'd feed must not be able to inject
+    // arbitrary content into the blocklist file. Duplicates are collapsed to keep the file stable.
     internal static List<string> ParseIps(string csv)
     {
         var ips = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var line in csv.Split('\n'))
         {
             var trimmed = line.Trim();
@@ -51,7 +55,12 @@ public sealed class FeodoTrackerUpdater : IThreatFeedUpdater, IDisposable
             if (parts.Length >= 2)
             {
                 var ip = parts[1].Trim();
-                if (ip.Length > 0) ips.Add(ip);
+                if (ip.Length > 0
+                    && System.Net.IPAddress.TryParse(ip, out _)
+                    && seen.Add(ip))
+                {
+                    ips.Add(ip);
+                }
             }
         }
         return ips;
