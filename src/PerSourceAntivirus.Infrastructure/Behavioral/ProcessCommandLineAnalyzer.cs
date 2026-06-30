@@ -59,7 +59,7 @@ public sealed class ProcessCommandLineAnalyzer : IProcessCommandLineAnalyzer
         {
             try
             {
-                ScanProcessCommandLines();
+                await ScanProcessCommandLinesAsync(ct).ConfigureAwait(false);
                 PruneRecentAlerts();
             }
             catch { }
@@ -68,7 +68,7 @@ public sealed class ProcessCommandLineAnalyzer : IProcessCommandLineAnalyzer
         }
     }
 
-    private void ScanProcessCommandLines()
+    private async Task ScanProcessCommandLinesAsync(CancellationToken ct)
     {
         try
         {
@@ -78,6 +78,7 @@ public sealed class ProcessCommandLineAnalyzer : IProcessCommandLineAnalyzer
 
             foreach (ManagementObject obj in results)
             {
+                ct.ThrowIfCancellationRequested();
                 try
                 {
                     var pid = Convert.ToInt32(obj["ProcessId"]);
@@ -117,7 +118,7 @@ public sealed class ProcessCommandLineAnalyzer : IProcessCommandLineAnalyzer
                     {
                         using var scope = _scopeFactory.CreateScope();
                         var repo = scope.ServiceProvider.GetRequiredService<IProcessCommandLineAlertRepository>();
-                        repo.AddAsync(alert, CancellationToken.None).GetAwaiter().GetResult();
+                        await repo.AddAsync(alert, CancellationToken.None).ConfigureAwait(false);
                     }
                     catch { }
 
@@ -126,6 +127,7 @@ public sealed class ProcessCommandLineAnalyzer : IProcessCommandLineAnalyzer
                 catch { }
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch { }
     }
 

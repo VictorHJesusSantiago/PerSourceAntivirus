@@ -50,7 +50,7 @@ public sealed class ParentChildAnomalyDetector : IParentChildAnomalyDetector
         {
             try
             {
-                CheckProcesses();
+                await CheckProcessesAsync(ct).ConfigureAwait(false);
             }
             catch { }
 
@@ -58,10 +58,11 @@ public sealed class ParentChildAnomalyDetector : IParentChildAnomalyDetector
         }
     }
 
-    private void CheckProcesses()
+    private async Task CheckProcessesAsync(CancellationToken ct)
     {
         foreach (var proc in SysProcess.GetProcesses())
         {
+            ct.ThrowIfCancellationRequested();
             try
             {
                 var childName = proc.ProcessName + ".exe";
@@ -132,12 +133,13 @@ public sealed class ParentChildAnomalyDetector : IParentChildAnomalyDetector
                 {
                     using var scope = _scopeFactory.CreateScope();
                     var repo = scope.ServiceProvider.GetRequiredService<IParentChildAnomalyAlertRepository>();
-                    repo.AddAsync(alert, CancellationToken.None).GetAwaiter().GetResult();
+                    await repo.AddAsync(alert, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch { }
 
                 AlertDetected?.Invoke(this, new ParentChildAnomalyAlertEventArgs(alert));
             }
+            catch (OperationCanceledException) { throw; }
             catch { }
             finally
             {

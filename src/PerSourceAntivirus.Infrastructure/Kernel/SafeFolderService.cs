@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.DependencyInjection;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
 
@@ -8,7 +9,7 @@ namespace PerSourceAntivirus.Infrastructure.Kernel;
 [SupportedOSPlatform("windows")]
 public sealed class SafeFolderService : ISafeFolderService
 {
-    private readonly ISafeFolderViolationRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly List<string> _protectedFolders = [];
     private readonly List<string> _whitelistedProcesses = [];
     private readonly Lock _lock = new();
@@ -39,9 +40,21 @@ public sealed class SafeFolderService : ISafeFolderService
 
     public event EventHandler<SafeFolderViolationAlertEventArgs>? ViolationDetected;
 
-    public SafeFolderService(ISafeFolderViolationRepository repository)
+    // Per-write scope: AppDbContext is not thread-safe; violations are raised from minifilter callback threads.
+    private async Task PersistAsync(SafeFolderViolationAlert alert)
     {
-        _repository = repository;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<ISafeFolderViolationRepository>();
+            await repository.AddAsync(alert).ConfigureAwait(false);
+        }
+        catch { }
+    }
+
+    public SafeFolderService(IServiceScopeFactory scopeFactory)
+    {
+        _scopeFactory = scopeFactory;
 
         // Default protected folders
         var docs    = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -148,7 +161,7 @@ public sealed class SafeFolderService : ISafeFolderService
             DetectedAtUtc = DateTime.UtcNow
         };
 
-        try { _repository.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+        _ = PersistAsync(alert);
         ViolationDetected?.Invoke(this, new SafeFolderViolationAlertEventArgs(alert));
     }
 
