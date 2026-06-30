@@ -8,7 +8,7 @@ using PerSourceAntivirus.Domain.Entities;
 namespace PerSourceAntivirus.Infrastructure.Security;
 
 [SupportedOSPlatform("windows")]
-public sealed class InstalledSoftwareScanner : IInstalledSoftwareScanner
+public sealed class InstalledSoftwareScanner : IInstalledSoftwareScanner, IDisposable
 {
     private static readonly string[] RegistryPaths =
     [
@@ -17,6 +17,7 @@ public sealed class InstalledSoftwareScanner : IInstalledSoftwareScanner
     ];
 
     private readonly HttpClient _httpClient;
+    private bool _disposed;
 
     public InstalledSoftwareScanner()
     {
@@ -25,6 +26,13 @@ public sealed class InstalledSoftwareScanner : IInstalledSoftwareScanner
             Timeout = TimeSpan.FromSeconds(30)
         };
         _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("PerSourceAntivirus/1.0");
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _httpClient.Dispose();
     }
 
     public async Task<IReadOnlyList<VulnerableSoftwareAlert>> ScanInstalledSoftwareAsync(CancellationToken ct)
