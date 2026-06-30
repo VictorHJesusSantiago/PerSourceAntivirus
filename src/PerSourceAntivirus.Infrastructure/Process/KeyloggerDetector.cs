@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Session;
 using Microsoft.Win32;
+using Microsoft.Extensions.DependencyInjection;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
 using SysProcess = System.Diagnostics.Process;
@@ -14,7 +15,7 @@ namespace PerSourceAntivirus.Infrastructure.Process;
 [SupportedOSPlatform("windows")]
 public sealed class KeyloggerDetector : IKeyloggerDetector
 {
-    private readonly IKeyloggerAlertRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ConcurrentDictionary<string, DateTime> _recentAlerts = new();
     private volatile bool _running;
 
@@ -39,9 +40,21 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
 
     public event EventHandler<KeyloggerDetectionAlertEventArgs>? AlertDetected;
 
-    public KeyloggerDetector(IKeyloggerAlertRepository repository)
+    public KeyloggerDetector(IServiceScopeFactory scopeFactory)
     {
-        _repository = repository;
+        _scopeFactory = scopeFactory;
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from ETW/monitor threads.
+    private async Task PersistAsync(KeyloggerDetectionAlert alert)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IKeyloggerAlertRepository>();
+            await repository.AddAsync(alert).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     // ETW provider: Microsoft-Windows-Win32k detects cross-process SetWindowsHookEx calls
@@ -341,7 +354,7 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
             DetectedAtUtc = now
         };
 
-        try { _repository.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+        _ = PersistAsync(alert);
         AlertDetected?.Invoke(this, new KeyloggerDetectionAlertEventArgs(alert));
     }
 }
