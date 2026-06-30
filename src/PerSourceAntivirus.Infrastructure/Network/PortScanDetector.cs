@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.DependencyInjection;
 using PacketDotNet;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
@@ -9,7 +10,7 @@ using SharpPcap.LibPcap;
 namespace PerSourceAntivirus.Infrastructure.Network;
 
 [SupportedOSPlatform("windows")]
-public sealed class PortScanDetector(IPortScanAlertRepository repository) : IPortScanDetector
+public sealed class PortScanDetector(IServiceScopeFactory scopeFactory) : IPortScanDetector
 {
     // sourceIp -> bag of (port, time)
     private readonly ConcurrentDictionary<string, ConcurrentBag<(int port, DateTime time)>> _portTracker =
@@ -115,8 +116,20 @@ public sealed class PortScanDetector(IPortScanAlertRepository repository) : IPor
             DetectedAtUtc = now
         };
 
-        try { repository.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+        _ = PersistAsync(alert);
         AlertDetected?.Invoke(this, new PortScanAlertEventArgs(alert));
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
+    private async Task PersistAsync(PortScanAlert alert)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IPortScanAlertRepository>();
+            await repository.AddAsync(alert).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     private static ILiveDevice? GetDevice(string? deviceName)

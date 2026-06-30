@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.Versioning;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using PacketDotNet;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
@@ -10,7 +11,7 @@ using SharpPcap.LibPcap;
 namespace PerSourceAntivirus.Infrastructure.Network;
 
 [SupportedOSPlatform("windows")]
-public sealed class WpadAbuseDetector(IWpadAbuseAlertRepository repository) : IWpadAbuseDetector
+public sealed class WpadAbuseDetector(IServiceScopeFactory scopeFactory) : IWpadAbuseDetector
 {
     private readonly ConcurrentDictionary<string, DateTime> _recentAlerts =
         new(StringComparer.OrdinalIgnoreCase);
@@ -190,8 +191,20 @@ public sealed class WpadAbuseDetector(IWpadAbuseAlertRepository repository) : IW
             DetectedAtUtc = now
         };
 
-        try { repository.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+        _ = PersistAsync(alert);
         AlertDetected?.Invoke(this, new WpadAbuseAlertEventArgs(alert));
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
+    private async Task PersistAsync(WpadAbuseAlert alert)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IWpadAbuseAlertRepository>();
+            await repository.AddAsync(alert).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     private static ILiveDevice? GetDevice(string? deviceName)

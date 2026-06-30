@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.Versioning;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using PacketDotNet;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
@@ -10,7 +11,7 @@ using SharpPcap.LibPcap;
 namespace PerSourceAntivirus.Infrastructure.Network;
 
 [SupportedOSPlatform("windows")]
-public sealed class LlmnrPoisoningDetector(ILlmnrPoisoningAlertRepository repository) : ILlmnrPoisoningDetector
+public sealed class LlmnrPoisoningDetector(IServiceScopeFactory scopeFactory) : ILlmnrPoisoningDetector
 {
     // query name → (querierIp, list of (responderIp, mac, seenAt))
     private readonly ConcurrentDictionary<string, (string querierIp, List<(string ip, string mac, DateTime seen)> responders)> _queryMap = new(StringComparer.OrdinalIgnoreCase);
@@ -137,8 +138,20 @@ public sealed class LlmnrPoisoningDetector(ILlmnrPoisoningAlertRepository reposi
             DetectedAtUtc = now
         };
 
-        try { repository.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+        _ = PersistAsync(alert);
         AlertDetected?.Invoke(this, new LlmnrPoisoningAlertEventArgs(alert));
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
+    private async Task PersistAsync(LlmnrPoisoningAlert alert)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<ILlmnrPoisoningAlertRepository>();
+            await repository.AddAsync(alert).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     private static string ParseDnsName(byte[] data, int offset)

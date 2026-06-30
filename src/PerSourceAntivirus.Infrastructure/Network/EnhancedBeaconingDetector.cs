@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.DependencyInjection;
 using PacketDotNet;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
@@ -9,7 +10,7 @@ using SharpPcap.LibPcap;
 namespace PerSourceAntivirus.Infrastructure.Network;
 
 [SupportedOSPlatform("windows")]
-public sealed class EnhancedBeaconingDetector(IBeaconingAnalysisRepository repository) : IEnhancedBeaconingDetector
+public sealed class EnhancedBeaconingDetector(IServiceScopeFactory scopeFactory) : IEnhancedBeaconingDetector
 {
     private readonly ConcurrentDictionary<string, BeaconTracker> _trackers =
         new(StringComparer.OrdinalIgnoreCase);
@@ -142,8 +143,20 @@ public sealed class EnhancedBeaconingDetector(IBeaconingAnalysisRepository repos
             DetectedAtUtc = now
         };
 
-        try { repository.AddAsync(analysis).GetAwaiter().GetResult(); } catch { }
+        _ = PersistAsync(analysis);
         AlertDetected?.Invoke(this, new BeaconingAlertEventArgs(analysis));
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
+    private async Task PersistAsync(BeaconingAnalysis analysis)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IBeaconingAnalysisRepository>();
+            await repository.AddAsync(analysis).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     private static double StandardDeviation(double[] values)

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.DependencyInjection;
 using PacketDotNet;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
@@ -9,7 +10,7 @@ using SharpPcap.LibPcap;
 namespace PerSourceAntivirus.Infrastructure.Network;
 
 [SupportedOSPlatform("windows")]
-public sealed class ArpSpoofingDetector(IArpSpoofingAlertRepository repository) : IArpSpoofingDetector
+public sealed class ArpSpoofingDetector(IServiceScopeFactory scopeFactory) : IArpSpoofingDetector
 {
     // IP → last seen MAC
     private readonly ConcurrentDictionary<string, string> _ipToMac = new(StringComparer.OrdinalIgnoreCase);
@@ -124,8 +125,21 @@ public sealed class ArpSpoofingDetector(IArpSpoofingAlertRepository repository) 
             DetectedAtUtc = now
         };
 
-        try { repository.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+        _ = PersistAsync(alert);
         AlertDetected?.Invoke(this, new ArpSpoofingAlertEventArgs(alert));
+    }
+
+    // Each write gets its own scope/DbContext: AppDbContext is not thread-safe and these alerts are
+    // raised from SharpPcap capture-callback threads. Exceptions are observed (not unobserved).
+    private async Task PersistAsync(ArpSpoofingAlert alert)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IArpSpoofingAlertRepository>();
+            await repository.AddAsync(alert).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     private static ILiveDevice? GetDevice(string? deviceName)

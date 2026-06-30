@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.Versioning;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection;
 using PacketDotNet;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
@@ -10,7 +11,7 @@ using SharpPcap.LibPcap;
 namespace PerSourceAntivirus.Infrastructure.Network;
 
 [SupportedOSPlatform("windows")]
-public sealed class SmbLateralMovementDetector(ISmbLateralMovementAlertRepository repository) : ISmbLateralMovementDetector
+public sealed class SmbLateralMovementDetector(IServiceScopeFactory scopeFactory) : ISmbLateralMovementDetector
 {
     // key = srcIp:srcPort -> dstIp:dstPort, tracks SMB stream state
     private readonly ConcurrentDictionary<string, SmbStreamState> _streams =
@@ -214,8 +215,20 @@ public sealed class SmbLateralMovementDetector(ISmbLateralMovementAlertRepositor
             DetectedAtUtc = now
         };
 
-        try { repository.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+        _ = PersistAsync(alert);
         AlertDetected?.Invoke(this, new SmbLateralMovementAlertEventArgs(alert));
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
+    private async Task PersistAsync(SmbLateralMovementAlert alert)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<ISmbLateralMovementAlertRepository>();
+            await repository.AddAsync(alert).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     private static ILiveDevice? GetDevice(string? deviceName)
