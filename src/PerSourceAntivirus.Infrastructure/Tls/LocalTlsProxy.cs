@@ -8,6 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
+using Microsoft.Extensions.DependencyInjection;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
 
@@ -36,7 +37,7 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
     private readonly Channel<TlsCertAlert> _certAlertChannel;
     private readonly ConcurrentDictionary<string, X509Certificate2> _certCache = new();
     private readonly ConcurrentDictionary<string, DateTime> _certAlertDedup = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ITlsCertAlertRepository? _certAlertRepository;
+    private readonly IServiceScopeFactory? _scopeFactory;
 
     private X509Certificate2? _caCert;
     private TcpListener? _listener;
@@ -45,10 +46,10 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
     private bool _running;
     private bool _disposed;
 
-    public LocalTlsProxy(string caPath = "data/psav-ca.cer", ITlsCertAlertRepository? certAlertRepository = null)
+    public LocalTlsProxy(string caPath = "data/psav-ca.cer", IServiceScopeFactory? scopeFactory = null)
     {
         _caPath = caPath;
-        _certAlertRepository = certAlertRepository;
+        _scopeFactory = scopeFactory;
         _channel = Channel.CreateUnbounded<TlsInspectionEvent>(new UnboundedChannelOptions
         {
             SingleWriter = false,
@@ -581,8 +582,23 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
             };
 
             _certAlertChannel.Writer.TryWrite(alert);
-            try { _certAlertRepository?.AddAsync(alert).GetAwaiter().GetResult(); } catch { }
+            _ = PersistAsync(alert);
             CertAlertDetected?.Invoke(this, new TlsCertAlertEventArgs(alert));
+        }
+        catch { }
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from TLS proxy connection
+    // threads. Persistence is optional (the repository may not be registered), so resolve it leniently.
+    private async Task PersistAsync(TlsCertAlert alert)
+    {
+        if (_scopeFactory is null) return;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetService<ITlsCertAlertRepository>();
+            if (repository is not null)
+                await repository.AddAsync(alert).ConfigureAwait(false);
         }
         catch { }
     }
