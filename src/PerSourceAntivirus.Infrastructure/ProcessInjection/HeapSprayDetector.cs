@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.DependencyInjection;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
 using SysProcess = System.Diagnostics.Process;
@@ -10,7 +11,7 @@ namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 [SupportedOSPlatform("windows")]
 public sealed class HeapSprayDetector : IHeapSprayDetector
 {
-    private readonly IHeapSprayAlertRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ConcurrentDictionary<int, DateTime> _alertedPids = new();
     private volatile bool _running;
 
@@ -47,9 +48,21 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
 
     public event EventHandler<HeapSprayAlertEventArgs>? AlertDetected;
 
-    public HeapSprayDetector(IHeapSprayAlertRepository repository)
+    public HeapSprayDetector(IServiceScopeFactory scopeFactory)
     {
-        _repository = repository;
+        _scopeFactory = scopeFactory;
+    }
+
+    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from scan threads.
+    private async Task PersistAsync(HeapSprayAlert alert, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IHeapSprayAlertRepository>();
+            await repository.AddAsync(alert, ct).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
@@ -151,8 +164,7 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
                     DetectedAtUtc = now
                 };
 
-                try { await _repository.AddAsync(alert, ct); }
-                catch (Exception) { }
+                await PersistAsync(alert, ct).ConfigureAwait(false);
                 AlertDetected?.Invoke(this, new HeapSprayAlertEventArgs(alert));
             }
 
@@ -196,8 +208,7 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
                 DetectedAtUtc = now
             };
 
-            try { _repository.AddAsync(alert, ct).GetAwaiter().GetResult(); }
-            catch (Exception) { }
+            _ = PersistAsync(alert, ct);
             AlertDetected?.Invoke(this, new HeapSprayAlertEventArgs(alert));
         }
     }
