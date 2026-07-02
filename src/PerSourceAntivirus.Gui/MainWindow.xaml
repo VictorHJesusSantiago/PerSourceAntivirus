@@ -237,7 +237,7 @@
         </Border>
 
         <!-- ====== Main content area ====== -->
-        <Border Grid.Column="1" Background="{StaticResource ContentBackground}">
+        <Border Grid.Column="1" Background="{DynamicResource ContentBackground}">
             <ContentControl Content="{Binding CurrentView}"/>
         </Border>
     </Grid>

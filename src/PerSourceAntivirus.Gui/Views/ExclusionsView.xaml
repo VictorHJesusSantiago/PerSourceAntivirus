@@ -5,6 +5,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -16,13 +17,21 @@
             <TextBox Text="{Binding NewExclusion, UpdateSourceTrigger=PropertyChanged}"
                      Width="400" Padding="8,6"
                      BorderBrush="#CCCCCC" BorderThickness="1"/>
+            <Button Content="Preview de Impacto" Command="{Binding PreviewImpactCommand}"
+                    Margin="8,0,0,0" Padding="16,6"
+                    Background="#EEEEEE" Foreground="#333"
+                    BorderThickness="0" Cursor="Hand"/>
             <Button Content="Add" Command="{Binding AddCommand}"
                     Margin="8,0,0,0" Padding="16,6"
                     Background="{StaticResource AccentBrush}" Foreground="White"
                     BorderThickness="0" Cursor="Hand"/>
         </StackPanel>
 
-        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0,0,0,0">
+        <TextBlock Grid.Row="2" Text="{Binding ImpactPreviewMessage}"
+                   FontSize="12" Foreground="#555" TextWrapping="Wrap"
+                   Margin="0,0,0,12"/>
+
+        <Border Grid.Row="3" Style="{StaticResource CardStyle}" Margin="0,0,0,0">
             <ListBox ItemsSource="{Binding Exclusions}"
                      Background="Transparent"
                      BorderThickness="0"
@@ -63,7 +72,7 @@
             </ListBox>
         </Border>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,12,0,0">
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,12,0,0">
             <Button Content="Import from File" Command="{Binding ImportCommand}"
                     Padding="12,6" Background="#555" Foreground="White"
                     BorderThickness="0" Cursor="Hand" Margin="0,0,8,0"/>

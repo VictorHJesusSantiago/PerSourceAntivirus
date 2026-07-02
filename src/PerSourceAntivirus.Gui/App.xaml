@@ -4,9 +4,12 @@
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Default theme; swapped at runtime by ThemeManager (Settings > Aparência). -->
+                <ResourceDictionary Source="Themes/LightTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
             <!-- Colors -->
             <SolidColorBrush x:Key="NavBackground" Color="#1E1E2E"/>
-            <SolidColorBrush x:Key="ContentBackground" Color="#F5F5F5"/>
             <SolidColorBrush x:Key="AccentBrush" Color="#4A9EFF"/>
             <SolidColorBrush x:Key="DangerBrush" Color="#FF4A4A"/>
             <SolidColorBrush x:Key="WarningBrush" Color="#FFB24A"/>
@@ -46,7 +49,7 @@
             </Style>
             <!-- Card style -->
             <Style x:Key="CardStyle" TargetType="Border">
-                <Setter Property="Background" Value="White"/>
+                <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
                 <Setter Property="CornerRadius" Value="8"/>
                 <Setter Property="Padding" Value="16"/>
                 <Setter Property="Margin" Value="8"/>

@@ -73,6 +73,20 @@
 
             <Border Style="{StaticResource CardStyle}">
                 <StackPanel>
+                    <TextBlock Text="Aparência" FontSize="15" FontWeight="SemiBold"
+                               Foreground="#333" Margin="0,0,0,12"/>
+                    <TextBlock Text="Tema" FontSize="12"
+                               Foreground="#555" Margin="0,0,0,4"/>
+                    <ComboBox SelectedValue="{Binding Theme}" Width="160"
+                              HorizontalAlignment="Left" Padding="8,6">
+                        <ComboBoxItem Content="Light"/>
+                        <ComboBoxItem Content="Dark"/>
+                    </ComboBox>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardStyle}">
+                <StackPanel>
                     <TextBlock Text="Maintenance" FontSize="15" FontWeight="SemiBold"
                                Foreground="#333" Margin="0,0,0,12"/>
                     <TextBlock Text="Schedule a scan on next reboot (writes BootExecute registry entry)."
