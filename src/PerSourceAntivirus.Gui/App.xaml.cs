@@ -44,6 +44,7 @@ public partial class App
                 services.AddTransient<ToastNotificationService>();
                 services.AddSingleton<SafeModeScanScheduler>();
                 services.AddSingleton<TrayIconService>();
+                services.AddSingleton<ThemeManager>();
                 services.AddSingleton<MainWindow>();
             })
             .Build();
@@ -58,6 +59,10 @@ public partial class App
             await db.Database.MigrateAsync();
         }
         catch { /* non-fatal */ }
+
+        var themeManager = _host.Services.GetRequiredService<ThemeManager>();
+        var configuration = _host.Services.GetRequiredService<IConfiguration>();
+        themeManager.ApplyTheme(configuration["Gui:Theme"] ?? ThemeManager.Light);
 
         _tray = _host.Services.GetRequiredService<TrayIconService>();
         _tray.Initialize();
