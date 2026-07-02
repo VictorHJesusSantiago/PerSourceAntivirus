@@ -11,6 +11,9 @@
     <!-- Infrastructure -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
+    <!-- SQLCipher-backed SQLitePCLRaw provider — enables Password= in the Sqlite connection
+         string so persourceav.db is encrypted at rest instead of the default plaintext e_sqlite3. -->
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlcipher" Version="2.1.10" />
     <PackageVersion Include="dnYara" Version="2.1.0" />
     <PackageVersion Include="dnYara.NativePack" Version="2.1.0.3" />
     <PackageVersion Include="PeNet" Version="6.1.2" />

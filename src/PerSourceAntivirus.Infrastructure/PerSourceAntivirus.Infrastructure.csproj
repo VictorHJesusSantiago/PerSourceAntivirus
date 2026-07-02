@@ -15,6 +15,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlcipher" />
     <PackageReference Include="dnYara" />
     <PackageReference Include="dnYara.NativePack" />
     <PackageReference Include="PeNet" />
