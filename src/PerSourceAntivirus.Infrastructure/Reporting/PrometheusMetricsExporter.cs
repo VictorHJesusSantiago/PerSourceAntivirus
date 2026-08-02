@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,9 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure.Reporting;
 
-public sealed class PrometheusMetricsExporter(IServiceScopeFactory scopeFactory) : IMetricsExporter, IDisposable
+public sealed class PrometheusMetricsExporter(
+    IServiceScopeFactory scopeFactory,
+    IDetectorDiagnostics detectorDiagnostics) : IMetricsExporter, IDisposable
 {
     private HttpListener? _listener;
     private CancellationTokenSource? _cts;
@@ -88,8 +91,45 @@ public sealed class PrometheusMetricsExporter(IServiceScopeFactory scopeFactory)
         await AppendAlertCountAsync<GeoIpBlockAlert>(sb, db, "geoip_block", ct);
         await AppendAlertCountAsync<UsbDeviceEvent>(sb, db, "usb_device_event", ct);
 
+        AppendDetectorHealth(sb);
+
         return sb.ToString();
     }
+
+    // [ADR-001] RED metrics per detector. Alert counters alone cannot distinguish "no threats
+    // found" from "detector dead": these expose the scan rate, error rate and duration that make
+    // a stalled or permanently-failing detector visible to alerting.
+    private void AppendDetectorHealth(StringBuilder sb)
+    {
+        var snapshot = detectorDiagnostics.GetHealthSnapshot();
+
+        sb.AppendLine("# HELP psav_detector_scans_total Completed scan iterations per detector");
+        sb.AppendLine("# TYPE psav_detector_scans_total counter");
+        foreach (var d in snapshot)
+            sb.AppendLine($"psav_detector_scans_total{{detector=\"{Escape(d.DetectorName)}\"}} {d.ScansCompleted}");
+
+        sb.AppendLine("# HELP psav_detector_errors_total Failed scan iterations per detector");
+        sb.AppendLine("# TYPE psav_detector_errors_total counter");
+        foreach (var d in snapshot)
+            sb.AppendLine($"psav_detector_errors_total{{detector=\"{Escape(d.DetectorName)}\"}} {d.ScansFailed}");
+
+        sb.AppendLine("# HELP psav_detector_last_scan_duration_seconds Duration of the most recent successful scan");
+        sb.AppendLine("# TYPE psav_detector_last_scan_duration_seconds gauge");
+        foreach (var d in snapshot)
+            sb.AppendLine($"psav_detector_last_scan_duration_seconds{{detector=\"{Escape(d.DetectorName)}\"}} {d.LastScanDurationSeconds.ToString("F4", CultureInfo.InvariantCulture)}");
+
+        // Age of the last success is the key liveness signal: alert when it stops advancing.
+        sb.AppendLine("# HELP psav_detector_seconds_since_last_success Seconds since the detector last completed a scan");
+        sb.AppendLine("# TYPE psav_detector_seconds_since_last_success gauge");
+        var now = DateTime.UtcNow;
+        foreach (var d in snapshot)
+        {
+            var seconds = d.LastSuccessfulScanUtc is { } last ? (now - last).TotalSeconds : -1;
+            sb.AppendLine($"psav_detector_seconds_since_last_success{{detector=\"{Escape(d.DetectorName)}\"}} {seconds.ToString("F0", CultureInfo.InvariantCulture)}");
+        }
+    }
+
+    private static string Escape(string label) => label.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
     private static async Task AppendAlertCountAsync<T>(StringBuilder sb, AppDbContext db, string metricSuffix, CancellationToken ct)
         where T : class

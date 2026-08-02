@@ -40,14 +40,15 @@ public sealed class AmsiBypassDetector : IAmsiBypassDetector
         [0x33, 0xC0],
     ];
 
-    private bool _running;
+    // Cancellation is the sole stop mechanism here (the loop waits on _cts.Token, and
+    // StopMonitoring cancels it) — a separate _running flag existed but was written and never
+    // read, so it was removed rather than left as misleading vestigial state.
     private CancellationTokenSource? _cts;
 
     public event EventHandler<AmsiBypassAlertEventArgs>? AlertDetected;
 
     public async Task StartMonitoringAsync(CancellationToken ct)
     {
-        _running = true;
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         while (!_cts.Token.IsCancellationRequested)
@@ -59,15 +60,9 @@ public sealed class AmsiBypassDetector : IAmsiBypassDetector
                 AlertDetected?.Invoke(this, new AmsiBypassAlertEventArgs(alert));
             }
         }
-
-        _running = false;
     }
 
-    public void StopMonitoring()
-    {
-        _cts?.Cancel();
-        _running = false;
-    }
+    public void StopMonitoring() => _cts?.Cancel();
 
     private IEnumerable<AmsiBypassAlert> ScanAllTargetProcesses()
     {
