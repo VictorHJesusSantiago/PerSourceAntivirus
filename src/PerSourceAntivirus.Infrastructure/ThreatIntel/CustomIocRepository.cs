@@ -28,4 +28,12 @@ public sealed class CustomIocRepository(AppDbContext db) : ICustomIocRepository
 
     public async Task<IReadOnlyList<CustomIoc>> GetByTypeAsync(string type, CancellationToken ct = default)
         => await db.Set<CustomIoc>().Where(x => x.IsActive && x.IocType == type).ToListAsync(ct);
+
+    public async Task<IReadOnlyList<CustomIoc>> FindActiveByValueAsync(string value, CancellationToken ct = default)
+    {
+        var normalized = value.ToLowerInvariant();
+        return await db.Set<CustomIoc>()
+            .Where(x => x.IsActive && x.Value.ToLower() == normalized)
+            .ToListAsync(ct);
+    }
 }
