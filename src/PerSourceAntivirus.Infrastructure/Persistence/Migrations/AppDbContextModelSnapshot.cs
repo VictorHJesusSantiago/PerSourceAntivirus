@@ -17,6 +17,33 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.0");
 
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ActiveLearningSample", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FeaturesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsMalicious")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordedAtUtc");
+
+                    b.ToTable("ActiveLearningSamples");
+                });
+
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AdsStreamInfo", b =>
                 {
                     b.Property<Guid>("Id")
@@ -356,6 +383,38 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.ToTable("AtomBombingAlerts");
                 });
 
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AuditLogChainEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EntryHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventDescription")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PreviousHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SequenceNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SequenceNumber")
+                        .IsUnique();
+
+                    b.ToTable("AuditLogChainEntries");
+                });
+
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AutostartEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -543,6 +602,80 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.ToTable("BrowserExtensionFindings");
                 });
 
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CertificateTrustAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DetectedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProcessId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProcessName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SubjectName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Thumbprint")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetectedAtUtc");
+
+                    b.ToTable("CertificateTrustAlerts");
+                });
+
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CertificateTrustEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("AddedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubjectName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Thumbprint")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TrustLevel")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Thumbprint")
+                        .IsUnique();
+
+                    b.ToTable("CertificateTrustEntries");
+                });
+
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CfgViolationAlert", b =>
                 {
                     b.Property<Guid>("Id")
@@ -662,6 +795,45 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.ToTable("ComHijackAlerts");
                 });
 
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CryptojackingAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("CpuPercent")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTime>("DetectedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetectionReason")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProcessId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProcessName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemoteAddress")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RemotePort")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetectedAtUtc");
+
+                    b.ToTable("CryptojackingAlerts");
+                });
+
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CustomIoc", b =>
                 {
                     b.Property<Guid>("Id")
@@ -700,6 +872,43 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("IocType", "Value");
 
                     b.ToTable("CustomIocs");
+                });
+
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CustomSignatureMatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DetectedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileHashSha256")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MatchType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SignatureName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetectedAtUtc");
+
+                    b.HasIndex("FileHashSha256");
+
+                    b.ToTable("CustomSignatureMatches");
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.DgaAlert", b =>
@@ -779,6 +988,47 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.ToTable("DirectSyscallAlerts");
                 });
 
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.DllHijackAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DetectedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DllName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExpectedSystemDllPath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HijackType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LoadedDllPath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProcessId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProcessName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetectedAtUtc");
+
+                    b.ToTable("DllHijackAlerts");
+                });
+
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.DnsQueryEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -809,6 +1059,46 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("DnsQueryEvents");
+                });
+
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.DnsTunnelingAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("AverageLabelEntropy")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("AverageQueryLength")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTime>("DetectedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetectionReason")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("QueriesInWindow")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("QueryDomain")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SourceAddress")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetectedAtUtc");
+
+                    b.ToTable("DnsTunnelingAlerts");
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.EmailScanResult", b =>
@@ -1092,6 +1382,37 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.ToTable("FirmwareVariableSnapshots");
                 });
 
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.GeoIpBlockAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DetectedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemoteAddress")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetectedAtUtc");
+
+                    b.ToTable("GeoIpBlockAlerts");
+                });
+
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.HashReputationResult", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1242,6 +1563,30 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("HoneypotFiles");
+                });
+
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.HostIsolationEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("TriggeredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TriggeredAtUtc");
+
+                    b.ToTable("HostIsolationEvents");
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.HypervisorDetectionResult", b =>
@@ -2248,6 +2593,52 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.ToTable("PeSections");
                 });
 
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PlaybookExecutionLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActionsExecuted")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AlertType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExecutedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FilePath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ProcessId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("RuleId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RuleName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExecutedAtUtc");
+
+                    b.ToTable("PlaybookExecutionLogs");
+                });
+
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PortScanAlert", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2457,6 +2848,33 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ProcessEvents");
+                });
+
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ProcessFirewallRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("AddedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProcessPath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessPath");
+
+                    b.ToTable("ProcessFirewallRules");
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ProcessGhostingAlert", b =>
@@ -2721,6 +3139,80 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.ToTable("RegistryActivityEvents");
                 });
 
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.RemoteAgentEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceProduct")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceVendor")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ExtensionsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ReceivedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SignatureId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceHost")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceivedAtUtc");
+
+                    b.ToTable("RemoteAgentEvents");
+                });
+
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ResponsePlaybookRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Actions")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MinSeverity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TriggerAlertType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ResponsePlaybookRules");
+                });
+
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.RootkitFinding", b =>
                 {
                     b.Property<int>("Id")
@@ -2794,6 +3286,42 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("WasBlocked");
 
                     b.ToTable("SafeFolderViolationAlerts");
+                });
+
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SampleSubmissionRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalFilePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PackagedArchivePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Submitted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SubmittedToUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Success")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.ToTable("SampleSubmissionRecords");
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ScanProfile", b =>
@@ -3073,6 +3601,42 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("Verdict");
 
                     b.ToTable("ScriptSandboxResults");
+                });
+
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SecureBootStatusSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Anomalies")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BootloaderHashSha256")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BootloaderPath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("BootloaderSigned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("BootloaderTrusted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CheckedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SecureBootEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CheckedAtUtc");
+
+                    b.ToTable("SecureBootStatusSnapshots");
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SecurityPostureIssue", b =>
@@ -3688,6 +4252,80 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("DetectedAtUtc");
 
                     b.ToTable("UnpackingResults");
+                });
+
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.UnsignedBinaryAlert", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DetectedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsSigned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsTrusted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ProcessId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProcessName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Severity")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetectedAtUtc");
+
+                    b.ToTable("UnsignedBinaryAlerts");
+                });
+
+            modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.UsbDeviceEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActionTaken")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DetectedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PnpDeviceId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VendorProductId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("WasAllowed")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DetectedAtUtc");
+
+                    b.ToTable("UsbDeviceEvents");
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.UserAccountAuditFinding", b =>
