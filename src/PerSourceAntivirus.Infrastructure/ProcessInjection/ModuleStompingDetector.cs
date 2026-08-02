@@ -9,7 +9,6 @@ using SysProcess = System.Diagnostics.Process;
 
 namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IModuleStompingDetector, ModuleStompingDetector>();
 [SupportedOSPlatform("windows")]
 public sealed class ModuleStompingDetector : IModuleStompingDetector
 {

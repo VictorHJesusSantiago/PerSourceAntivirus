@@ -5,7 +5,6 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 
-// TODO: Register in DependencyInjection.cs as: services.AddScoped<IModuleStompingAlertRepository, ModuleStompingAlertRepository>();
 public sealed class ModuleStompingAlertRepository(AppDbContext db) : IModuleStompingAlertRepository
 {
     public async Task AddAsync(ModuleStompingAlert alert, CancellationToken ct = default)
