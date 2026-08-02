@@ -64,11 +64,17 @@ public sealed class CertificateTrustDetector : ICertificateTrustDetector
         try { processes = SysProcess.GetProcesses(); }
         catch (Exception) { return; }
 
+        // Resolved once per sweep, not per process — see DetectorScanScope.ResolveDiagnostics.
+        var diagnostics = Diagnostics.DetectorScanScope.ResolveDiagnostics(_scopeFactory);
+
         foreach (var proc in processes)
         {
             if (ct.IsCancellationRequested) break;
-            try { await EvaluateProcessAsync(proc, ct); }
-            catch (Exception) { }
+            try
+            {
+                await Diagnostics.DetectorScanScope.RunItemAsync(
+                    diagnostics, nameof(CertificateTrustDetector), () => EvaluateProcessAsync(proc, ct));
+            }
             finally { proc.Dispose(); }
         }
     }

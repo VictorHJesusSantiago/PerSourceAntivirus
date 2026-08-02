@@ -68,11 +68,17 @@ public sealed class UnsignedBinaryDetector : IUnsignedBinaryDetector
         try { processes = SysProcess.GetProcesses(); }
         catch (Exception) { return; }
 
+        // Resolved once per sweep, not per process — see DetectorScanScope.ResolveDiagnostics.
+        var diagnostics = Diagnostics.DetectorScanScope.ResolveDiagnostics(_scopeFactory);
+
         foreach (var proc in processes)
         {
             if (ct.IsCancellationRequested) break;
-            try { await EvaluateProcessAsync(proc, ct); }
-            catch (Exception) { }
+            try
+            {
+                await Diagnostics.DetectorScanScope.RunItemAsync(
+                    diagnostics, nameof(UnsignedBinaryDetector), () => EvaluateProcessAsync(proc, ct));
+            }
             finally { proc.Dispose(); }
         }
     }
@@ -120,13 +126,9 @@ public sealed class UnsignedBinaryDetector : IUnsignedBinaryDetector
         AlertDetected?.Invoke(this, new UnsignedBinaryAlertEventArgs(alert));
     }
 
+    // Location matching lives in ModuleLocationHeuristics so it is unit testable; only the
+    // OS-specific folder discovery stays here.
     private static bool IsSuspiciousLocation(string filePath)
-    {
-        foreach (var fragment in SuspiciousDirFragments)
-        {
-            if (fragment.Length > 0 && filePath.StartsWith(fragment, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-        return false;
-    }
+        => Detection.Heuristics.ModuleLocationHeuristics.IsSuspiciousExecutableLocation(
+            filePath, SuspiciousDirFragments);
 }
