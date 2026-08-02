@@ -80,7 +80,7 @@ public partial class App
         }
         catch (Exception ex)
         {
-            MessageBox.Show(
+            System.Windows.MessageBox.Show(
                 $"Falha ao iniciar o PerSourceAntivirus:\n\n{ex.Message}",
                 "Erro de inicialização",
                 MessageBoxButton.OK,

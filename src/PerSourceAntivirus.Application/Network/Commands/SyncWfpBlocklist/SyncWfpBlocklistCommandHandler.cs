@@ -1,32 +1,38 @@
 using MediatR;
 using PerSourceAntivirus.Application.Common.Interfaces;
-using PerSourceAntivirus.Domain.Entities;
 
 namespace PerSourceAntivirus.Application.Network.Commands.SyncWfpBlocklist;
 
 public class SyncWfpBlocklistCommandHandler(IWfpBlocker wfp, IBlocklistProvider blocklist, IWfpBlockRepository repo)
     : IRequestHandler<SyncWfpBlocklistCommand, SyncWfpBlocklistResult>
 {
+    // [AUDIT FIX — HIGH, Domain 1 Obscured Intent / correctness] This handler injected
+    // IBlocklistProvider and carried a comment saying it synced "the blocklist provider ...
+    // known-malicious IPs" into WFP — but it never read `blocklist` (the compiler flagged it as
+    // an unread parameter, CS9113). It actually re-synced only IPs *already recorded* in the WFP
+    // block repository, so every IP newly imported by the threat-feed updaters (FeodoTracker,
+    // ThreatFox, OTX) into ip-blocklist.txt was never pushed into a WFP filter — the
+    // "threat feed -> kernel-level enforcement" path was inert.
+    //
+    // IBlocklistProvider previously had no way to enumerate its entries (only a per-IP lookup),
+    // which is why the parameter went unused; GetAllBlockedAddresses() was added for this.
     public async Task<SyncWfpBlocklistResult> Handle(SyncWfpBlocklistCommand request, CancellationToken cancellationToken)
     {
-        var existingBlocks = await repo.GetActiveIpsAsync(cancellationToken);
-        var existing = new HashSet<string>(existingBlocks, StringComparer.OrdinalIgnoreCase);
+        var alreadyInWfp = new HashSet<string>(
+            (await wfp.GetActiveBlocksAsync(cancellationToken)).Select(b => b.IpAddress),
+            StringComparer.OrdinalIgnoreCase);
 
-        var allIps = await wfp.GetActiveBlocksAsync(cancellationToken);
-        var wfpActive = new HashSet<string>(allIps.Select(b => b.IpAddress), StringComparer.OrdinalIgnoreCase);
+        // Union of both sources of truth: the on-disk blocklist (fed by the threat-feed updaters)
+        // and IPs previously persisted as blocked (so blocks survive a WFP engine restart).
+        var desired = new HashSet<string>(blocklist.GetAllBlockedAddresses(), StringComparer.OrdinalIgnoreCase);
+        desired.UnionWith(await repo.GetActiveIpsAsync(cancellationToken));
 
-        // Sync blocklist IPs into WFP — the blocklist provider has the known-malicious IPs
-        var added = 0;
-        var alreadyBlocked = 0;
-        var errors = 0;
+        var missing = desired.Where(ip => !alreadyInWfp.Contains(ip)).ToList();
+        var added = await wfp.SyncFromIpListAsync(missing, cancellationToken);
 
-        var toBlock = await wfp.SyncFromIpListAsync(
-            existing.Where(ip => !wfpActive.Contains(ip)),
-            cancellationToken);
-
-        added = toBlock;
-        alreadyBlocked = wfpActive.Count;
-
-        return new SyncWfpBlocklistResult(added, alreadyBlocked, errors);
+        return new SyncWfpBlocklistResult(
+            Added: added,
+            AlreadyBlocked: alreadyInWfp.Count,
+            Errors: missing.Count - added);
     }
 }
