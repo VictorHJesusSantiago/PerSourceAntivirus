@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using PerSourceAntivirus.Application.Common.Interfaces;
@@ -16,6 +17,26 @@ public sealed class AtomBombingDetector : IAtomBombingDetector
 
     private volatile bool _running;
     private readonly HashSet<ushort> _alertedAtoms = new();
+    private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _scopeFactory;
+
+    public AtomBombingDetector(Microsoft.Extensions.DependencyInjection.IServiceScopeFactory scopeFactory)
+    {
+        _scopeFactory = scopeFactory;
+    }
+
+    // [AUDIT FIX — HIGH] This detector raised AlertDetected and nothing else: the event has no
+    // subscribers anywhere in the codebase and IAtomBombingAlertRepository, though registered in
+    // DI, was never resolved. Every atom-bombing detection was therefore discarded outright.
+    private async Task PersistAsync(AtomBombingAlert alert, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IAtomBombingAlertRepository>();
+            await repository.AddAsync(alert, ct).ConfigureAwait(false);
+        }
+        catch { }
+    }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
     {
@@ -24,8 +45,7 @@ public sealed class AtomBombingDetector : IAtomBombingDetector
         {
             while (!ct.IsCancellationRequested && _running)
             {
-                try { await ScanOnceAsync(ct); }
-                catch (Exception) { /* don't crash the loop */ }
+                await Diagnostics.DetectorScanScope.RunAsync(_scopeFactory, nameof(AtomBombingDetector), () => ScanOnceAsync(ct));
                 await Task.Delay(TimeSpan.FromSeconds(30), ct);
             }
         }
@@ -66,6 +86,8 @@ public sealed class AtomBombingDetector : IAtomBombingDetector
                     Severity = entropy > 5.5 ? 8 : 6,
                     DetectedAtUtc = DateTime.UtcNow
                 };
+
+                await PersistAsync(alert, ct).ConfigureAwait(false);
 
                 AlertDetected?.Invoke(this, new AtomBombingAlertEventArgs(alert));
             }

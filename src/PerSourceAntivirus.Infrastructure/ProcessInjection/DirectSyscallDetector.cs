@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -11,7 +12,7 @@ namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 [SupportedOSPlatform("windows")]
 public sealed class DirectSyscallDetector : IDirectSyscallDetector
 {
-    private readonly IDirectSyscallAlertRepository _repository;
+    private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _scopeFactory;
     private readonly ConcurrentDictionary<string, DateTime> _recentAlerts = new();
     private volatile bool _running;
 
@@ -60,9 +61,24 @@ public sealed class DirectSyscallDetector : IDirectSyscallDetector
 
     public event EventHandler<DirectSyscallAlertEventArgs>? AlertDetected;
 
-    public DirectSyscallDetector(IDirectSyscallAlertRepository repository)
+    public DirectSyscallDetector(Microsoft.Extensions.DependencyInjection.IServiceScopeFactory scopeFactory)
     {
-        _repository = repository;
+        _scopeFactory = scopeFactory;
+    }
+
+    // [AUDIT FIX — CRITICAL] This detector is a singleton but used to take a *scoped*
+    // IDirectSyscallAlertRepository directly (captive dependency): one AppDbContext captured for the
+    // process lifetime and written to from background scan threads, where it is not thread-safe.
+    // Scope-per-write is the pattern CLAUDE.md mandates for exactly this reason.
+    private async Task PersistAsync(DirectSyscallAlert alert, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IDirectSyscallAlertRepository>();
+            await repository.AddAsync(alert, ct).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
@@ -72,8 +88,7 @@ public sealed class DirectSyscallDetector : IDirectSyscallDetector
         {
             while (!ct.IsCancellationRequested && _running)
             {
-                try { await ScanOnceAsync(ct); }
-                catch (Exception) { }
+                await Diagnostics.DetectorScanScope.RunAsync(_scopeFactory, nameof(DirectSyscallDetector), () => ScanOnceAsync(ct));
                 await Task.Delay(TimeSpan.FromSeconds(30), ct);
             }
         }
@@ -202,8 +217,7 @@ public sealed class DirectSyscallDetector : IDirectSyscallDetector
             DetectedAtUtc = now
         };
 
-        try { await _repository.AddAsync(alert, ct); }
-        catch (Exception) { }
+        await PersistAsync(alert, ct).ConfigureAwait(false);
 
         AlertDetected?.Invoke(this, new DirectSyscallAlertEventArgs(alert));
     }
