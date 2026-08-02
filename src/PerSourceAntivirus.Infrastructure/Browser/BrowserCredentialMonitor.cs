@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.Versioning;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
@@ -8,7 +9,7 @@ namespace PerSourceAntivirus.Infrastructure.Browser;
 [SupportedOSPlatform("windows")]
 public sealed class BrowserCredentialMonitor : IBrowserCredentialMonitor, IDisposable
 {
-    private readonly IBrowserCredentialAccessAlertRepository _repo;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly List<FileSystemWatcher> _watchers = [];
     private readonly HashSet<string> _knownBrowserProcessNames = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -19,9 +20,21 @@ public sealed class BrowserCredentialMonitor : IBrowserCredentialMonitor, IDispo
 
     public event EventHandler<BrowserCredentialAccessAlertEventArgs>? AlertDetected;
 
-    public BrowserCredentialMonitor(IBrowserCredentialAccessAlertRepository repo)
+    // [AUDIT FIX — CRITICAL] Singleton capturing a scoped repository (captive dependency).
+    public BrowserCredentialMonitor(IServiceScopeFactory scopeFactory)
     {
-        _repo = repo;
+        _scopeFactory = scopeFactory;
+    }
+
+    private async Task PersistAsync(BrowserCredentialAccessAlert alert, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IBrowserCredentialAccessAlertRepository>();
+            await repository.AddAsync(alert, ct).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
@@ -154,8 +167,7 @@ public sealed class BrowserCredentialMonitor : IBrowserCredentialMonitor, IDispo
 
         _ = Task.Run(async () =>
         {
-            try { await _repo.AddAsync(alert, ct); }
-            catch { }
+            await PersistAsync(alert, ct).ConfigureAwait(false);
         }, ct);
     }
 
