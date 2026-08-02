@@ -58,8 +58,7 @@ public sealed class DllHijackDetector : IDllHijackDetector
         {
             while (!ct.IsCancellationRequested && _running)
             {
-                try { await ScanOnceAsync(ct); }
-                catch (Exception) { }
+                await Diagnostics.DetectorScanScope.RunAsync(_scopeFactory, nameof(DllHijackDetector), () => ScanOnceAsync(ct));
                 await Task.Delay(TimeSpan.FromSeconds(30), ct);
             }
         }
