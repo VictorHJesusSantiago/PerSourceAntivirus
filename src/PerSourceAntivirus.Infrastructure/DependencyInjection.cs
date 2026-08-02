@@ -7,7 +7,9 @@ using PerSourceAntivirus.Infrastructure.Amsi;
 using PerSourceAntivirus.Infrastructure.Archive;
 using PerSourceAntivirus.Infrastructure.ComHijack;
 using PerSourceAntivirus.Infrastructure.Config;
+using PerSourceAntivirus.Infrastructure.Cryptojacking;
 using PerSourceAntivirus.Infrastructure.Dga;
+using PerSourceAntivirus.Infrastructure.DllHijack;
 using PerSourceAntivirus.Infrastructure.Email;
 using PerSourceAntivirus.Infrastructure.Emulation;
 using PerSourceAntivirus.Infrastructure.Etw;
@@ -33,6 +35,8 @@ using PerSourceAntivirus.Infrastructure.Scheduling;
 using PerSourceAntivirus.Infrastructure.Scripts;
 using PerSourceAntivirus.Infrastructure.SelfIntegrity;
 using PerSourceAntivirus.Infrastructure.Siem;
+using PerSourceAntivirus.Infrastructure.Signatures;
+using PerSourceAntivirus.Infrastructure.Signing;
 using PerSourceAntivirus.Infrastructure.Steganography;
 using PerSourceAntivirus.Infrastructure.ThreatFeeds;
 using PerSourceAntivirus.Infrastructure.Tls;
@@ -57,8 +61,27 @@ public static class DependencyInjection
 
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
+        // Encrypt persourceav.db at rest via SQLCipher. The e_sqlcipher provider transparently
+        // reads existing plaintext databases too, so this is safe to set unconditionally;
+        // DatabaseEncryptionMigrator then converts any pre-existing plaintext file in place.
+        SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_e_sqlcipher());
+
+        var baseConnectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? "Data Source=persourceav.db";
+        var dbKeyFile = Path.Combine(AppContext.BaseDirectory, "data", "db.key");
+        var dbPassphrase = PerSourceAntivirus.Infrastructure.Persistence.DatabaseEncryptionKeyProvider.GetOrCreatePassphrase(dbKeyFile);
+
+        var dbFilePathMatch = System.Text.RegularExpressions.Regex.Match(baseConnectionString, @"Data Source=([^;]+)");
+        if (dbFilePathMatch.Success)
+        {
+            var dbFilePath = dbFilePathMatch.Groups[1].Value;
+            if (!Path.IsPathRooted(dbFilePath)) dbFilePath = Path.Combine(AppContext.BaseDirectory, dbFilePath);
+            PerSourceAntivirus.Infrastructure.Persistence.DatabaseEncryptionMigrator.EnsureEncrypted(dbFilePath, dbPassphrase);
+        }
+
+        var encryptedConnectionString = $"{baseConnectionString};Password={dbPassphrase}";
         services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlite(configuration.GetConnectionString("DefaultConnection")));
+            options.UseSqlite(encryptedConnectionString));
 
         services.AddScoped<IScannedFileRepository, ScannedFileRepository>();
         services.AddScoped<INetworkConnectionEventRepository, NetworkConnectionEventRepository>();
@@ -414,6 +437,124 @@ public static class DependencyInjection
         services.AddScoped<IBrowserExtensionFindingRepository, PerSourceAntivirus.Infrastructure.Browser.BrowserExtensionFindingRepository>();
         services.AddSingleton<IBrowserCredentialMonitor, PerSourceAntivirus.Infrastructure.Browser.BrowserCredentialMonitor>();
         services.AddScoped<IBrowserCredentialAccessAlertRepository, PerSourceAntivirus.Infrastructure.Browser.BrowserCredentialAccessAlertRepository>();
+
+        // Phase 19 — DLL search-order hijacking
+        services.AddSingleton<IDllHijackDetector, DllHijackDetector>();
+        services.AddScoped<IDllHijackAlertRepository, DllHijackAlertRepository>();
+
+        // Phase 19 — Cryptojacking (CPU + mining-pool port correlation)
+        services.AddSingleton<ICryptojackingDetector, CryptojackingDetector>();
+        services.AddScoped<ICryptojackingAlertRepository, CryptojackingAlertRepository>();
+
+        // Phase 19 — Authenticode verification + unsigned/untrusted binary detection
+        services.AddSingleton<IAuthenticodeVerifier, AuthenticodeVerifier>();
+        services.AddSingleton<IUnsignedBinaryDetector, UnsignedBinaryDetector>();
+        services.AddScoped<IUnsignedBinaryAlertRepository, UnsignedBinaryAlertRepository>();
+
+        // Phase 19 — Custom signature engine (hash + wildcard), complementary to YARA
+        var customSignaturesFile = configuration["Signatures:CustomSignaturesFile"] ?? "data/custom-signatures.txt";
+        if (!Path.IsPathRooted(customSignaturesFile))
+            customSignaturesFile = Path.Combine(AppContext.BaseDirectory, customSignaturesFile);
+        services.AddSingleton<ICustomSignatureEngine>(_ => new CustomSignatureEngine(customSignaturesFile));
+        services.AddScoped<ICustomSignatureMatchRepository, CustomSignatureMatchRepository>();
+
+        // Phase 19 — Certificate trust list (whitelist/blacklist by Authenticode thumbprint)
+        services.AddScoped<ICertificateTrustEntryRepository, CertificateTrustEntryRepository>();
+        services.AddSingleton<ICertificateTrustListService, CertificateTrustListService>();
+        services.AddSingleton<ICertificateTrustDetector, CertificateTrustDetector>();
+        services.AddScoped<ICertificateTrustAlertRepository, CertificateTrustAlertRepository>();
+
+        // Phase 20 — Network: hosts-file DNS filtering, per-process firewall, DNS tunneling, GeoIP
+        var domainBlocklistFileForHosts = configuration["Network:DomainBlocklistFile"] ?? "data/domain-blocklist.txt";
+        if (!Path.IsPathRooted(domainBlocklistFileForHosts))
+            domainBlocklistFileForHosts = Path.Combine(AppContext.BaseDirectory, domainBlocklistFileForHosts);
+        services.AddSingleton<IHostsFileBlocklistService>(_ => new HostsFileBlocklistService(domainBlocklistFileForHosts));
+
+        services.AddScoped<IProcessFirewallRuleRepository, ProcessFirewallRuleRepository>();
+        services.AddSingleton<IProcessFirewallService, ProcessFirewallService>();
+
+        services.AddSingleton<IDnsTunnelingDetector, DnsTunnelingDetector>();
+        services.AddScoped<IDnsTunnelingAlertRepository, DnsTunnelingAlertRepository>();
+
+        var geoIpDatabaseFile = configuration["GeoIp:DatabaseFile"] ?? "data/geoip-country-ranges.csv";
+        if (!Path.IsPathRooted(geoIpDatabaseFile))
+            geoIpDatabaseFile = Path.Combine(AppContext.BaseDirectory, geoIpDatabaseFile);
+        var blockedCountries = configuration.GetSection("GeoIp:BlockedCountries")
+            .GetChildren().Select(c => c.Value ?? string.Empty).Where(v => v.Length > 0).ToList();
+        services.AddSingleton<IGeoIpBlockingService>(_ => new GeoIpBlockingService(geoIpDatabaseFile, blockedCountries));
+        services.AddSingleton<IGeoIpEnforcementDetector, GeoIpEnforcementDetector>();
+        services.AddScoped<IGeoIpBlockAlertRepository, GeoIpBlockAlertRepository>();
+
+        // Phase 20 — GUI/UX backend: gamer mode + scheduled reports
+        services.AddSingleton<IFullScreenDetector, PerSourceAntivirus.Infrastructure.SystemIntegration.FullScreenDetector>();
+        var reportsDir = Path.Combine(AppContext.BaseDirectory, "data", "reports");
+        services.AddHostedService(sp => new PerSourceAntivirus.Infrastructure.Reporting.ThreatReportSchedulerService(
+            sp.GetRequiredService<IServiceScopeFactory>(), reportsDir));
+
+        // Phase 20 — OS integration: Explorer context menu, Secure Boot, USB device control
+        services.AddSingleton<IExplorerContextMenuInstaller, PerSourceAntivirus.Infrastructure.SystemIntegration.ExplorerContextMenuInstaller>();
+        services.AddSingleton<ISecureBootVerifier, PerSourceAntivirus.Infrastructure.Uefi.SecureBootVerifier>();
+        services.AddScoped<ISecureBootSnapshotRepository, PerSourceAntivirus.Infrastructure.Uefi.SecureBootSnapshotRepository>();
+
+        var usbAllowlistFile = configuration["UsbControl:AllowlistFile"] ?? "data/usb-allowlist.txt";
+        if (!Path.IsPathRooted(usbAllowlistFile))
+            usbAllowlistFile = Path.Combine(AppContext.BaseDirectory, usbAllowlistFile);
+        services.AddSingleton<IUsbDeviceControlService>(sp => new PerSourceAntivirus.Infrastructure.SystemIntegration.UsbDeviceControlService(
+            sp.GetRequiredService<IServiceScopeFactory>(), usbAllowlistFile));
+        services.AddScoped<IUsbDeviceEventRepository, PerSourceAntivirus.Infrastructure.SystemIntegration.UsbDeviceEventRepository>();
+
+        // Phase 20 — ML: incremental active-learning classifier
+        var activeLearningWeightsFile = Path.Combine(AppContext.BaseDirectory, "data", "models", "active-learning-weights.json");
+        services.AddSingleton<IActiveLearningService>(sp => new PerSourceAntivirus.Infrastructure.Pe.ActiveLearningService(
+            sp.GetRequiredService<IServiceScopeFactory>(), activeLearningWeightsFile));
+        services.AddScoped<IActiveLearningSampleRepository, PerSourceAntivirus.Infrastructure.Pe.ActiveLearningSampleRepository>();
+
+        // Phase 20 — Observability: Prometheus metrics, multi-agent CEF ingestion, audit hash chain
+        services.AddSingleton<IMetricsExporter, PerSourceAntivirus.Infrastructure.Reporting.PrometheusMetricsExporter>();
+        services.AddSingleton<ISyslogCefIngestionService, PerSourceAntivirus.Infrastructure.Siem.SyslogCefIngestionService>();
+        services.AddScoped<IRemoteAgentEventRepository, PerSourceAntivirus.Infrastructure.Siem.RemoteAgentEventRepository>();
+        services.AddScoped<IAuditLogChainService, PerSourceAntivirus.Infrastructure.Security.AuditLogChainService>();
+
+        // Phase 21 — Threat intel: additional open feeds (OTX / ThreatFox / PhishTank)
+        var otxApiKey = configuration["ThreatIntel:OtxApiKey"] ?? string.Empty;
+        var threatIntelCacheDir = Path.Combine(AppContext.BaseDirectory, "data", "threat-intel-cache");
+        services.AddSingleton<IThreatFeedUpdater>(sp => new PerSourceAntivirus.Infrastructure.ThreatFeeds.ThreatFoxUpdater(
+            sp.GetRequiredService<IServiceScopeFactory>(),
+            blocklistProvider, blocklistFile, domainBlocklist, domainBlocklistFile,
+            Path.Combine(threatIntelCacheDir, "threatfox.cache.json")));
+        services.AddSingleton<IThreatFeedUpdater>(sp => new PerSourceAntivirus.Infrastructure.ThreatFeeds.OtxThreatFeedUpdater(
+            otxApiKey, sp.GetRequiredService<IServiceScopeFactory>(),
+            blocklistProvider, blocklistFile, domainBlocklist, domainBlocklistFile,
+            Path.Combine(threatIntelCacheDir, "otx.cache.json")));
+        services.AddSingleton<IThreatFeedUpdater>(sp => new PerSourceAntivirus.Infrastructure.ThreatFeeds.PhishTankUpdater(
+            sp.GetRequiredService<IServiceScopeFactory>(), domainBlocklist, domainBlocklistFile,
+            Path.Combine(threatIntelCacheDir, "phishtank.cache.json")));
+
+        // Phase 21 — Threat intel: aggregated IP/domain reputation scoring + STIX export
+        services.AddSingleton<IIpDomainReputationScoringService, PerSourceAntivirus.Infrastructure.Reputation.IpDomainReputationScoringService>();
+        services.AddScoped<IStixIocExporter, PerSourceAntivirus.Infrastructure.ThreatIntel.StixIocExporter>();
+
+        // Phase 21 — Response/remediation: kill-switch, sample submission, playbooks, System Restore
+        services.AddSingleton<IHostIsolationService, PerSourceAntivirus.Infrastructure.Network.HostIsolationService>();
+        services.AddScoped<IHostIsolationEventRepository, PerSourceAntivirus.Infrastructure.Network.HostIsolationEventRepository>();
+
+        var samplePackageDir = Path.Combine(AppContext.BaseDirectory, "data", "sample-submissions");
+        services.AddSingleton<ISampleSubmissionService>(sp => new PerSourceAntivirus.Infrastructure.Files.SampleSubmissionService(
+            sp.GetRequiredService<IServiceScopeFactory>(), SharedHttpClient, samplePackageDir));
+        services.AddScoped<ISampleSubmissionRepository, PerSourceAntivirus.Infrastructure.Files.SampleSubmissionRepository>();
+
+        services.AddScoped<IResponsePlaybookRuleRepository, PerSourceAntivirus.Infrastructure.Response.ResponsePlaybookRuleRepository>();
+        services.AddScoped<IPlaybookExecutionLogRepository, PerSourceAntivirus.Infrastructure.Response.PlaybookExecutionLogRepository>();
+        services.AddSingleton<IResponsePlaybookEngine>(sp => new PerSourceAntivirus.Infrastructure.Response.ResponsePlaybookEngine(
+            sp.GetRequiredService<IServiceScopeFactory>(), quarantineDir));
+
+        services.AddSingleton<ISystemRestoreService, PerSourceAntivirus.Infrastructure.SystemIntegration.SystemRestoreService>();
+
+        // [AUDIT FIX — CRITICAL] Composition root for the 42 real-time detectors that were
+        // registered but never started (see RealtimeProtectionHostedService for details).
+        // Gated by the same RealtimeProtection:Enabled flag the GUI Settings page already
+        // exposes — previously read by the GUI but never actually wired to anything.
+        services.AddHostedService<RealtimeProtectionHostedService>();
 
         return services;
     }
