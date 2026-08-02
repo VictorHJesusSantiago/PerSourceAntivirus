@@ -5,7 +5,6 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure.Fileless;
 
-// TODO: Register in DependencyInjection.cs as: services.AddScoped<IFilelessAlertRepository, FilelessAlertRepository>();
 public class FilelessAlertRepository(AppDbContext db) : IFilelessAlertRepository
 {
     public async Task AddAsync(FilelessAlert alert, CancellationToken ct = default)
