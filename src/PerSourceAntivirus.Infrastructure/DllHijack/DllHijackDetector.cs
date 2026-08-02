@@ -16,16 +16,6 @@ public sealed class DllHijackDetector : IDllHijackDetector
     private readonly ConcurrentDictionary<string, DateTime> _alerted = new(StringComparer.OrdinalIgnoreCase);
     private volatile bool _running;
 
-    private static readonly HashSet<string> KnownSystemDlls = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "kernel32.dll", "user32.dll", "advapi32.dll", "ole32.dll", "oleaut32.dll",
-        "comctl32.dll", "shell32.dll", "gdi32.dll", "ws2_32.dll", "version.dll",
-        "dwmapi.dll", "uxtheme.dll", "winmm.dll", "propsys.dll", "dbghelp.dll",
-        "imm32.dll", "ntdll.dll", "msvcrt.dll", "crypt32.dll", "wininet.dll",
-        "urlmon.dll", "secur32.dll", "shlwapi.dll", "setupapi.dll", "winhttp.dll",
-        "netapi32.dll", "userenv.dll", "cryptsp.dll", "profapi.dll", "dnsapi.dll"
-    };
-
     private static readonly string System32Dir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32");
     private static readonly string SysWow64Dir =
@@ -74,11 +64,17 @@ public sealed class DllHijackDetector : IDllHijackDetector
         try { processes = SysProcess.GetProcesses(); }
         catch (Exception) { return; }
 
+        // Resolved once per sweep, not per process — see DetectorScanScope.ResolveDiagnostics.
+        var diagnostics = Diagnostics.DetectorScanScope.ResolveDiagnostics(_scopeFactory);
+
         foreach (var proc in processes)
         {
             if (ct.IsCancellationRequested) break;
-            try { await ScanProcessAsync(proc, ct); }
-            catch (Exception) { }
+            try
+            {
+                await Diagnostics.DetectorScanScope.RunItemAsync(
+                    diagnostics, nameof(DllHijackDetector), () => ScanProcessAsync(proc, ct));
+            }
             finally { proc.Dispose(); }
         }
     }
@@ -113,7 +109,7 @@ public sealed class DllHijackDetector : IDllHijackDetector
             finally { module.Dispose(); }
 
             if (moduleName.Length == 0 || modulePath.Length == 0) continue;
-            if (!KnownSystemDlls.Contains(moduleName)) continue;
+            if (!Detection.Heuristics.ModuleLocationHeuristics.IsKnownSystemDll(moduleName)) continue;
 
             var dir = Path.GetDirectoryName(modulePath) ?? string.Empty;
             if (IsSystemDirectory(dir)) continue;
@@ -141,11 +137,10 @@ public sealed class DllHijackDetector : IDllHijackDetector
         }
     }
 
+    // Trusted-directory comparison lives in ModuleLocationHeuristics so it is unit testable;
+    // only the OS-specific directory discovery stays here.
+    private static readonly string[] TrustedDirectories = [System32Dir, SysWow64Dir, WinSxsDir];
+
     private static bool IsSystemDirectory(string dir)
-    {
-        if (dir.Length == 0) return false;
-        return dir.StartsWith(System32Dir, StringComparison.OrdinalIgnoreCase) ||
-               dir.StartsWith(SysWow64Dir, StringComparison.OrdinalIgnoreCase) ||
-               dir.StartsWith(WinSxsDir, StringComparison.OrdinalIgnoreCase);
-    }
+        => Detection.Heuristics.ModuleLocationHeuristics.IsTrustedSystemDirectory(dir, TrustedDirectories);
 }
