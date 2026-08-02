@@ -72,8 +72,7 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
         {
             while (!ct.IsCancellationRequested && _running)
             {
-                try { await ScanOnceAsync(ct); }
-                catch (Exception) { }
+                await Diagnostics.DetectorScanScope.RunAsync(_scopeFactory, nameof(HeapSprayDetector), () => ScanOnceAsync(ct));
                 await Task.Delay(TimeSpan.FromSeconds(15), ct);
             }
         }

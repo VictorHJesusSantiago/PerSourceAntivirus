@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -11,7 +12,7 @@ namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 [SupportedOSPlatform("windows")]
 public sealed class HeavensGateDetector : IHeavensGateDetector
 {
-    private readonly IHeavensGateAlertRepository _repository;
+    private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _scopeFactory;
     private readonly ConcurrentDictionary<string, DateTime> _recentAlerts = new();
     private volatile bool _running;
 
@@ -64,9 +65,24 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
 
     public event EventHandler<HeavensGateAlertEventArgs>? AlertDetected;
 
-    public HeavensGateDetector(IHeavensGateAlertRepository repository)
+    public HeavensGateDetector(Microsoft.Extensions.DependencyInjection.IServiceScopeFactory scopeFactory)
     {
-        _repository = repository;
+        _scopeFactory = scopeFactory;
+    }
+
+    // [AUDIT FIX — CRITICAL] This detector is a singleton but used to take a *scoped*
+    // IHeavensGateAlertRepository directly (captive dependency): one AppDbContext captured for the
+    // process lifetime and written to from background scan threads, where it is not thread-safe.
+    // Scope-per-write is the pattern CLAUDE.md mandates for exactly this reason.
+    private async Task PersistAsync(HeavensGateAlert alert, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IHeavensGateAlertRepository>();
+            await repository.AddAsync(alert, ct).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
@@ -76,8 +92,7 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
         {
             while (!ct.IsCancellationRequested && _running)
             {
-                try { await ScanOnceAsync(ct); }
-                catch (Exception) { }
+                await Diagnostics.DetectorScanScope.RunAsync(_scopeFactory, nameof(HeavensGateDetector), () => ScanOnceAsync(ct));
                 await Task.Delay(TimeSpan.FromSeconds(20), ct);
             }
         }
@@ -228,8 +243,7 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
             DetectedAtUtc = now
         };
 
-        try { await _repository.AddAsync(alert, ct); }
-        catch (Exception) { }
+        await PersistAsync(alert, ct).ConfigureAwait(false);
 
         AlertDetected?.Invoke(this, new HeavensGateAlertEventArgs(alert));
     }
