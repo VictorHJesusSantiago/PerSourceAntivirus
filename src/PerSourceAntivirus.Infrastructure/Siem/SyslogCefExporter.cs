@@ -6,38 +6,35 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Siem;
 
-public class SyslogCefExporter : ISiemExporter, IDisposable
+public class SyslogCefExporter : ISiemExporter
 {
+    // Named client for the HttpJson protocol; BaseAddress/Authorization are applied per request
+    // rather than baked into a long-lived HttpClient, so the factory can rotate handlers.
+    public const string HttpClientName = "psav-siem";
+
     public SiemProtocol Protocol { get; }
     public string Host { get; }
     public int Port { get; }
     public string? ApiKey { get; }
 
-    private readonly HttpClient? _httpClient;
-    private bool _disposed;
+    private readonly IHttpClientFactory? _httpClientFactory;
 
     public SyslogCefExporter(
         SiemProtocol protocol = SiemProtocol.Disabled,
         string host = "127.0.0.1",
         int port = -1,
-        string? apiKey = null)
+        string? apiKey = null,
+        IHttpClientFactory? httpClientFactory = null)
     {
         Protocol = protocol;
         Host = host;
         ApiKey = apiKey;
+        _httpClientFactory = httpClientFactory;
 
         if (port < 0)
             Port = protocol == SiemProtocol.HttpJson ? 9200 : 514;
         else
             Port = port;
-
-        if (protocol == SiemProtocol.HttpJson)
-        {
-            _httpClient = new HttpClient();
-            _httpClient.BaseAddress = new Uri($"http://{Host}:{Port}");
-            if (!string.IsNullOrEmpty(apiKey))
-                _httpClient.DefaultRequestHeaders.Add("Authorization", $"ApiKey {apiKey}");
-        }
     }
 
     public bool IsEnabled => Protocol != SiemProtocol.Disabled;
@@ -142,7 +139,7 @@ public class SyslogCefExporter : ISiemExporter, IDisposable
 
     private async Task SendHttpJsonAsync(SiemEventPayload evt, CancellationToken ct)
     {
-        if (_httpClient == null) return;
+        if (_httpClientFactory is null) return;
 
         var doc = new Dictionary<string, object?>
         {
@@ -166,22 +163,21 @@ public class SyslogCefExporter : ISiemExporter, IDisposable
         }
 
         var json = JsonSerializer.Serialize(doc);
-        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         try
         {
-            await _httpClient.PostAsync("/psav-events/_doc", content, ct);
+            using var http = _httpClientFactory.CreateClient(HttpClientName);
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post, $"http://{Host}:{Port}/psav-events/_doc") { Content = content };
+            if (!string.IsNullOrEmpty(ApiKey))
+                request.Headers.TryAddWithoutValidation("Authorization", $"ApiKey {ApiKey}");
+
+            await http.SendAsync(request, ct);
         }
         catch (HttpRequestException)
         {
             // best-effort: ignore send failures
         }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        _httpClient?.Dispose();
     }
 }

@@ -116,7 +116,9 @@ public sealed class SupplyChainDetector(ISupplyChainAlertRepository repo) : ISup
     {
         try
         {
+            #pragma warning disable SYSLIB0057 // Only API that extracts an Authenticode-embedded cert; X509CertificateLoader has no equivalent.
             var rawCert = X509Certificate.CreateFromSignedFile(filePath);
+            #pragma warning restore SYSLIB0057
             var cert2 = new X509Certificate2(rawCert);
             var thumbprint = cert2.Thumbprint;
             var publisher = cert2.Subject;
@@ -204,7 +206,9 @@ public sealed class SupplyChainDetector(ISupplyChainAlertRepository repo) : ISup
     {
         try
         {
+            #pragma warning disable SYSLIB0057 // Only API that extracts an Authenticode-embedded cert; X509CertificateLoader has no equivalent.
             X509Certificate.CreateFromSignedFile(filePath);
+            #pragma warning restore SYSLIB0057
             return true;
         }
         catch
@@ -231,7 +235,9 @@ public sealed class SupplyChainDetector(ISupplyChainAlertRepository repo) : ISup
     {
         try
         {
+            #pragma warning disable SYSLIB0057 // Only API that extracts an Authenticode-embedded cert; X509CertificateLoader has no equivalent.
             var cert = X509Certificate.CreateFromSignedFile(filePath);
+            #pragma warning restore SYSLIB0057
             return new X509Certificate2(cert).Subject;
         }
         catch
@@ -244,7 +250,9 @@ public sealed class SupplyChainDetector(ISupplyChainAlertRepository repo) : ISup
     {
         try
         {
+            #pragma warning disable SYSLIB0057 // Only API that extracts an Authenticode-embedded cert; X509CertificateLoader has no equivalent.
             var cert = X509Certificate.CreateFromSignedFile(filePath);
+            #pragma warning restore SYSLIB0057
             return new X509Certificate2(cert).Thumbprint;
         }
         catch
