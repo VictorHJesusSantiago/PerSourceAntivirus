@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 
 namespace PerSourceAntivirus.Infrastructure.Email;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IEmailScanner, MimeKitEmailScanner>();
 public sealed class MimeKitEmailScanner : IEmailScanner
 {
     private static readonly HashSet<string> SuspiciousExtensions = new(StringComparer.OrdinalIgnoreCase)

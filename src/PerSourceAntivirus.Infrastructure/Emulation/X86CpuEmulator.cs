@@ -1,4 +1,3 @@
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<ICpuEmulator, X86CpuEmulator>();
 
 using Iced.Intel;
 using PerSourceAntivirus.Application.Common.Interfaces;
