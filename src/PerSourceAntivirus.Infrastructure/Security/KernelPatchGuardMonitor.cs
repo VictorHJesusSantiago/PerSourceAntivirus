@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
@@ -8,7 +9,7 @@ using SysProcess = System.Diagnostics.Process;
 namespace PerSourceAntivirus.Infrastructure.Security;
 
 [SupportedOSPlatform("windows")]
-public sealed class KernelPatchGuardMonitor(IKernelPatchGuardAlertRepository repo) : IKernelPatchGuardMonitor
+public sealed class KernelPatchGuardMonitor(IServiceScopeFactory scopeFactory) : IKernelPatchGuardMonitor
 {
     private CancellationTokenSource? _cts;
     private Task? _monitorTask;
@@ -49,7 +50,13 @@ public sealed class KernelPatchGuardMonitor(IKernelPatchGuardAlertRepository rep
                 var alerts = await CheckAsync(ct);
                 foreach (var alert in alerts)
                 {
-                    await repo.AddAsync(alert, ct);
+                    // [AUDIT FIX — CRITICAL] Scope-per-write: this singleton used to capture the
+                    // scoped repository and write to one shared DbContext from the monitor loop.
+                    using (var scope = scopeFactory.CreateScope())
+                    {
+                        var repository = scope.ServiceProvider.GetRequiredService<IKernelPatchGuardAlertRepository>();
+                        await repository.AddAsync(alert, ct).ConfigureAwait(false);
+                    }
                     AlertDetected?.Invoke(this, new KernelPatchGuardAlertEventArgs(alert));
                 }
             }

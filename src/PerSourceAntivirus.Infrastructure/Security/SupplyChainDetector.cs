@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -8,7 +9,7 @@ using SysProcess = System.Diagnostics.Process;
 namespace PerSourceAntivirus.Infrastructure.Security;
 
 [SupportedOSPlatform("windows")]
-public sealed class SupplyChainDetector(ISupplyChainAlertRepository repo) : ISupplyChainDetector
+public sealed class SupplyChainDetector(IServiceScopeFactory scopeFactory) : ISupplyChainDetector
 {
     private static readonly HashSet<string> KnownCompromisedHashes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -45,7 +46,13 @@ public sealed class SupplyChainDetector(ISupplyChainAlertRepository repo) : ISup
                 var alerts = await ScanRunningProcessesAsync(ct);
                 foreach (var alert in alerts)
                 {
-                    await repo.AddAsync(alert, ct);
+                    // [AUDIT FIX — CRITICAL] Scope-per-write: this singleton used to capture the
+                    // scoped repository and write to one shared DbContext from the scan loop.
+                    using (var scope = scopeFactory.CreateScope())
+                    {
+                        var repository = scope.ServiceProvider.GetRequiredService<ISupplyChainAlertRepository>();
+                        await repository.AddAsync(alert, ct).ConfigureAwait(false);
+                    }
                     AlertDetected?.Invoke(this, new SupplyChainAlertEventArgs(alert));
                 }
             }
