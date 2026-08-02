@@ -5,7 +5,10 @@ using PerSourceAntivirus.Domain.Entities;
 
 namespace PerSourceAntivirus.Infrastructure.Files;
 
-public sealed class SampleSubmissionService(IServiceScopeFactory scopeFactory, HttpClient http, string packageDirectory)
+public sealed class SampleSubmissionService(
+    IServiceScopeFactory scopeFactory,
+    IHttpClientFactory httpClientFactory,
+    string packageDirectory)
     : ISampleSubmissionService
 {
     public async Task<string> PackageSampleAsync(string quarantinedFilePath, CancellationToken ct = default)
@@ -56,6 +59,7 @@ public sealed class SampleSubmissionService(IServiceScopeFactory scopeFactory, H
             fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/zip");
             content.Add(fileContent, "sample", Path.GetFileName(packagedArchivePath));
 
+            using var http = httpClientFactory.CreateClient(ThreatFeeds.ThreatFeedHttpClient.Name);
             using var response = await http.PostAsync(submissionUrl, content, ct).ConfigureAwait(false);
             success = response.IsSuccessStatusCode;
             if (!success) error = $"HTTP {(int)response.StatusCode}";

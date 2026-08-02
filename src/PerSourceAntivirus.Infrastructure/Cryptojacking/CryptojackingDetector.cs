@@ -51,8 +51,7 @@ public sealed class CryptojackingDetector : ICryptojackingDetector
         {
             while (!ct.IsCancellationRequested && _running)
             {
-                try { await ScanOnceAsync(ct); }
-                catch (Exception) { }
+                await Diagnostics.DetectorScanScope.RunAsync(_scopeFactory, nameof(CryptojackingDetector), () => ScanOnceAsync(ct));
                 await Task.Delay(TimeSpan.FromSeconds(20), ct);
             }
         }
