@@ -142,10 +142,11 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
 
             bool fired = false;
 
-            if (avgEntropy < 3.0)
+            var entropyVerdict = Detection.Heuristics.HeapSprayHeuristics.EvaluateEntropy(totalBytes, avgEntropy);
+            if (entropyVerdict is not null)
             {
-                string reason = avgEntropy < 1.5 ? "ExtremeLowEntropyLargeAlloc" : "LowEntropyHeapSpray";
-                int severity = avgEntropy < 1.5 ? 9 : 7;
+                string reason = entropyVerdict.Reason;
+                int severity = entropyVerdict.Severity;
 
                 _alertedPids[pid] = now;
                 fired = true;
@@ -181,16 +182,12 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
     private void CheckUniformSizeAndAlert(int pid, string procName,
         List<(IntPtr baseAddr, long size)> regions, long totalBytes, DateTime now, CancellationToken ct)
     {
-        // Group by size bucket (size / 4096) — bucket granularity of 4KB
-        var buckets = new Dictionary<long, int>();
-        foreach (var (_, size) in regions)
-        {
-            long bucket = size / 4096;
-            buckets.TryGetValue(bucket, out int count);
-            buckets[bucket] = count + 1;
-        }
+        // Bucketing/threshold logic lives in HeapSprayHeuristics so it can be unit tested without
+        // a live process; this method keeps only the alert plumbing.
+        var verdict = Detection.Heuristics.HeapSprayHeuristics.EvaluateUniformSizes(
+            regions.Select(r => r.size).ToList());
 
-        if (buckets.Values.Any(v => v > 50))
+        if (verdict is not null)
         {
             _alertedPids[pid] = now;
 
@@ -202,8 +199,8 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
                 TotalPrivateCommittedBytes = totalBytes,
                 SuspiciousRegionCount = regions.Count,
                 AverageRegionEntropy = 0,
-                SuspicionReason = "UniformSizeAlloc",
-                Severity = 8,
+                SuspicionReason = verdict.Reason,
+                Severity = verdict.Severity,
                 DetectedAtUtc = now
             };
 
@@ -257,29 +254,11 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
         return sampled > 0 ? total / sampled : 0;
     }
 
+    // Both delegate to HeapSprayHeuristics — the logic is identical, but there it is reachable
+    // from tests instead of being locked behind a P/Invoke-driven scan loop.
     private static double CalculateEntropy(byte[] data, int length)
-    {
-        if (length == 0) return 0;
-        var freq = new int[256];
-        for (int i = 0; i < length; i++) freq[data[i]]++;
-        double entropy = 0;
-        foreach (var f in freq)
-        {
-            if (f == 0) continue;
-            double p = (double)f / length;
-            entropy -= p * Math.Log2(p);
-        }
-        return entropy;
-    }
+        => Detection.Heuristics.HeapSprayHeuristics.CalculateEntropy(data.AsSpan(0, length));
 
     private static bool IsSystemProcess(string procName)
-    {
-        return procName.Equals("System", StringComparison.OrdinalIgnoreCase) ||
-               procName.Equals("smss", StringComparison.OrdinalIgnoreCase) ||
-               procName.Equals("csrss", StringComparison.OrdinalIgnoreCase) ||
-               procName.Equals("wininit", StringComparison.OrdinalIgnoreCase) ||
-               procName.Equals("services", StringComparison.OrdinalIgnoreCase) ||
-               procName.Equals("lsass", StringComparison.OrdinalIgnoreCase) ||
-               procName.Equals("svchost", StringComparison.OrdinalIgnoreCase);
-    }
+        => Detection.Heuristics.HeapSprayHeuristics.IsSystemProcess(procName);
 }

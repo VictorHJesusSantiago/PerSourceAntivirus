@@ -1,4 +1,5 @@
 using System.Management;
+using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.Versioning;
 using PerSourceAntivirus.Application.Common.Interfaces;
 using PerSourceAntivirus.Domain.Entities;
@@ -8,13 +9,34 @@ namespace PerSourceAntivirus.Infrastructure.Ransomware;
 [SupportedOSPlatform("windows")]
 public sealed class VssRollbackService : IVssRollbackService
 {
-    private readonly IVssSnapshotRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     public event EventHandler<VssSnapshotEventArgs>? SnapshotCreated;
 
-    public VssRollbackService(IVssSnapshotRepository repository)
+    // [AUDIT FIX — CRITICAL] Registered as a Singleton but used to capture the *scoped*
+    // IVssSnapshotRepository, pinning one AppDbContext for the process lifetime. Detected by
+    // DependencyInjectionGraphTests.NoSingleton_DependsOnAScopedService.
+    public VssRollbackService(IServiceScopeFactory scopeFactory)
     {
-        _repository = repository;
+        _scopeFactory = scopeFactory;
+    }
+
+    private async Task PersistAsync(VssSnapshotEvent snapshotEvent, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IVssSnapshotRepository>();
+            await repository.AddAsync(snapshotEvent, ct).ConfigureAwait(false);
+        }
+        catch { }
+    }
+
+    private async Task<IReadOnlyList<VssSnapshotEvent>> LoadAllAsync(CancellationToken ct)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IVssSnapshotRepository>();
+        return await repository.GetAllAsync(ct).ConfigureAwait(false);
     }
 
     public async Task<string?> CreateSnapshotAsync(string folderPath, string reason, CancellationToken ct)
@@ -55,7 +77,7 @@ public sealed class VssRollbackService : IVssRollbackService
             CreatedAtUtc = DateTime.UtcNow
         };
 
-        try { await _repository.AddAsync(snapshotEvent, ct); } catch { }
+        await PersistAsync(snapshotEvent, ct).ConfigureAwait(false);
 
         SnapshotCreated?.Invoke(this, new VssSnapshotEventArgs(snapshotEvent));
 
@@ -67,7 +89,7 @@ public sealed class VssRollbackService : IVssRollbackService
         try
         {
             var volume = Path.GetPathRoot(folderPath)!;
-            var snapshots = await _repository.GetAllAsync(ct);
+            var snapshots = await LoadAllAsync(ct).ConfigureAwait(false);
 
             var latest = snapshots
                 .Where(s => !s.IsRestoreAction &&
@@ -90,7 +112,7 @@ public sealed class VssRollbackService : IVssRollbackService
                 CreatedAtUtc = DateTime.UtcNow
             };
 
-            try { await _repository.AddAsync(restoreEvent, ct); } catch { }
+            await PersistAsync(restoreEvent, ct).ConfigureAwait(false);
 
             SnapshotCreated?.Invoke(this, new VssSnapshotEventArgs(restoreEvent));
 
@@ -102,6 +124,5 @@ public sealed class VssRollbackService : IVssRollbackService
         }
     }
 
-    public Task<IReadOnlyList<VssSnapshotEvent>> ListSnapshotsAsync(CancellationToken ct)
-        => _repository.GetAllAsync(ct);
+    public Task<IReadOnlyList<VssSnapshotEvent>> ListSnapshotsAsync(CancellationToken ct) => LoadAllAsync(ct);
 }
