@@ -4,7 +4,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Wsc;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IWscRegistration, WscRegistrationService>();
 [SupportedOSPlatform("windows")]
 public sealed class WscRegistrationService : IWscRegistration
 {
