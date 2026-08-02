@@ -8,7 +8,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Scan Profiles" FontSize="20" FontWeight="Bold"
-                   Foreground="#333" Margin="0,0,0,16"/>
+                   Foreground="{DynamicResource ContentTextPrimary}" Margin="0,0,0,16"/>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
@@ -34,14 +34,14 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel>
                         <TextBlock Text="Edit Profile" FontSize="15" FontWeight="SemiBold"
-                                   Foreground="#333" Margin="0,0,0,16"/>
+                                   Foreground="{DynamicResource ContentTextPrimary}" Margin="0,0,0,16"/>
 
-                        <TextBlock Text="Name" FontSize="12" Foreground="#555" Margin="0,0,0,4"/>
+                        <TextBlock Text="Name" FontSize="12" Foreground="{DynamicResource ContentTextSecondary}" Margin="0,0,0,4"/>
                         <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
-                                 Padding="8,6" BorderBrush="#CCCCCC" BorderThickness="1"
+                                 Padding="8,6" BorderBrush="{DynamicResource ContentBorder}" BorderThickness="1"
                                  Margin="0,0,0,12"/>
 
-                        <TextBlock Text="Profile Type" FontSize="12" Foreground="#555" Margin="0,0,0,4"/>
+                        <TextBlock Text="Profile Type" FontSize="12" Foreground="{DynamicResource ContentTextSecondary}" Margin="0,0,0,4"/>
                         <ComboBox SelectedValue="{Binding EditType}" Padding="8,6"
                                   HorizontalAlignment="Left" Width="160" Margin="0,0,0,12">
                             <ComboBoxItem Content="Quick"/>
@@ -51,15 +51,15 @@
                         </ComboBox>
 
                         <TextBlock Text="Include Paths (semicolon-separated)" FontSize="12"
-                                   Foreground="#555" Margin="0,0,0,4"/>
+                                   Foreground="{DynamicResource ContentTextSecondary}" Margin="0,0,0,4"/>
                         <TextBox Text="{Binding EditIncludePaths, UpdateSourceTrigger=PropertyChanged}"
-                                 Padding="8,6" BorderBrush="#CCCCCC" BorderThickness="1"
+                                 Padding="8,6" BorderBrush="{DynamicResource ContentBorder}" BorderThickness="1"
                                  AcceptsReturn="False" Margin="0,0,0,12"/>
 
                         <TextBlock Text="Exclude Paths (semicolon-separated)" FontSize="12"
-                                   Foreground="#555" Margin="0,0,0,4"/>
+                                   Foreground="{DynamicResource ContentTextSecondary}" Margin="0,0,0,4"/>
                         <TextBox Text="{Binding EditExcludePaths, UpdateSourceTrigger=PropertyChanged}"
-                                 Padding="8,6" BorderBrush="#CCCCCC" BorderThickness="1"
+                                 Padding="8,6" BorderBrush="{DynamicResource ContentBorder}" BorderThickness="1"
                                  AcceptsReturn="False" Margin="0,0,0,20"/>
 
                         <StackPanel Orientation="Horizontal">
