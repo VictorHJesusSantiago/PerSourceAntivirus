@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -52,6 +53,26 @@ public sealed class ReflectiveDllInjectionDetector : IReflectiveDllInjectionDete
 
     private volatile bool _running;
     private readonly ConcurrentDictionary<string, DateTime> _recentAlerts = new();
+    private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _scopeFactory;
+
+    public ReflectiveDllInjectionDetector(Microsoft.Extensions.DependencyInjection.IServiceScopeFactory scopeFactory)
+    {
+        _scopeFactory = scopeFactory;
+    }
+
+    // [AUDIT FIX — HIGH] Like AtomBombingDetector, this raised AlertDetected and nothing else —
+    // no subscribers exist, and IReflectiveDllInjectionAlertRepository was registered but never
+    // resolved, so every reflective-injection detection was discarded instead of recorded.
+    private async Task PersistAsync(ReflectiveDllInjectionAlert alert, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IReflectiveDllInjectionAlertRepository>();
+            await repository.AddAsync(alert, ct).ConfigureAwait(false);
+        }
+        catch { }
+    }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
     {
@@ -60,8 +81,7 @@ public sealed class ReflectiveDllInjectionDetector : IReflectiveDllInjectionDete
         {
             while (!ct.IsCancellationRequested && _running)
             {
-                try { await ScanOnceAsync(ct); }
-                catch (Exception) { /* don't crash the loop */ }
+                await Diagnostics.DetectorScanScope.RunAsync(_scopeFactory, nameof(ReflectiveDllInjectionDetector), () => ScanOnceAsync(ct));
                 await Task.Delay(TimeSpan.FromSeconds(15), ct);
             }
         }
@@ -91,10 +111,10 @@ public sealed class ReflectiveDllInjectionDetector : IReflectiveDllInjectionDete
         }
     }
 
-    private Task ScanProcessAsync(int pid, string procName, CancellationToken ct)
+    private async Task ScanProcessAsync(int pid, string procName, CancellationToken ct)
     {
         var handle = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, false, pid);
-        if (handle == IntPtr.Zero) return Task.CompletedTask;
+        if (handle == IntPtr.Zero) return;
 
         try
         {
@@ -156,6 +176,8 @@ public sealed class ReflectiveDllInjectionDetector : IReflectiveDllInjectionDete
                                         DetectedAtUtc = DateTime.UtcNow
                                     };
 
+                                    await PersistAsync(alert, ct).ConfigureAwait(false);
+
                                     AlertDetected?.Invoke(this, new ReflectiveDllInjectionAlertEventArgs(alert));
                                 }
                             }
@@ -172,7 +194,6 @@ public sealed class ReflectiveDllInjectionDetector : IReflectiveDllInjectionDete
             CloseHandle(handle);
         }
 
-        return Task.CompletedTask;
     }
 
     private static double CalculateEntropy(byte[] data)
