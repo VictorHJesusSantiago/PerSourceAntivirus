@@ -9,7 +9,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
-            <TextBlock FontSize="20" FontWeight="Bold" Foreground="#333" VerticalAlignment="Center">
+            <TextBlock FontSize="20" FontWeight="Bold" Foreground="{DynamicResource ContentTextPrimary}" VerticalAlignment="Center">
                 <Run Text="Security Alerts ("/>
                 <Run Text="{Binding TotalCount}"/>
                 <Run Text=")"/>
@@ -23,7 +23,7 @@
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
             <TextBox Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                      Width="250" Padding="8,6"
-                     BorderBrush="#CCCCCC" BorderThickness="1">
+                     BorderBrush="{DynamicResource ContentBorder}" BorderThickness="1">
                 <TextBox.Style>
                     <Style TargetType="TextBox">
                         <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -52,10 +52,10 @@
                   IsReadOnly="True"
                   GridLinesVisibility="Horizontal"
                   HeadersVisibility="Column"
-                  Background="White"
-                  RowBackground="White"
-                  AlternatingRowBackground="#FAFAFA"
-                  BorderBrush="#E0E0E0"
+                  Background="{DynamicResource CardBackground}"
+                  RowBackground="{DynamicResource CardBackground}"
+                  AlternatingRowBackground="{DynamicResource SubtleBackground}"
+                  BorderBrush="{DynamicResource ContentBorder}"
                   BorderThickness="1"
                   CanUserResizeRows="False"
                   SelectionMode="Single">

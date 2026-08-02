@@ -11,15 +11,17 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Exclusion Management" FontSize="20" FontWeight="Bold"
-                   Foreground="#333" Margin="0,0,0,16"/>
+                   Foreground="{DynamicResource ContentTextPrimary}" Margin="0,0,0,16"/>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,12">
             <TextBox Text="{Binding NewExclusion, UpdateSourceTrigger=PropertyChanged}"
                      Width="400" Padding="8,6"
-                     BorderBrush="#CCCCCC" BorderThickness="1"/>
+                     AutomationProperties.Name="Caminho ou padrão a excluir"
+                     AutomationProperties.HelpText="Informe um arquivo ou pasta que o antivírus deve ignorar"
+                     BorderBrush="{DynamicResource ContentBorder}" BorderThickness="1"/>
             <Button Content="Preview de Impacto" Command="{Binding PreviewImpactCommand}"
                     Margin="8,0,0,0" Padding="16,6"
-                    Background="#EEEEEE" Foreground="#333"
+                    Background="#EEEEEE" Foreground="{DynamicResource ContentTextPrimary}"
                     BorderThickness="0" Cursor="Hand"/>
             <Button Content="Add" Command="{Binding AddCommand}"
                     Margin="8,0,0,0" Padding="16,6"
@@ -28,7 +30,7 @@
         </StackPanel>
 
         <TextBlock Grid.Row="2" Text="{Binding ImpactPreviewMessage}"
-                   FontSize="12" Foreground="#555" TextWrapping="Wrap"
+                   FontSize="12" Foreground="{DynamicResource ContentTextSecondary}" TextWrapping="Wrap"
                    Margin="0,0,0,12"/>
 
         <Border Grid.Row="3" Style="{StaticResource CardStyle}" Margin="0,0,0,0">
@@ -52,15 +54,19 @@
                 </ListBox.ItemContainerStyle>
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="#EEEEEE" BorderThickness="0,0,0,1" Padding="0,6">
+                        <Border BorderBrush="{DynamicResource ContentBorder}" BorderThickness="0,0,0,1" Padding="0,6">
                             <Grid>
-                                <TextBlock Text="{Binding}" FontSize="13" Foreground="#333"
+                                <TextBlock Text="{Binding}" FontSize="13" Foreground="{DynamicResource ContentTextPrimary}"
                                            VerticalAlignment="Center"/>
+                                <!-- Icon-only button: "×" conveys nothing to a screen reader, so the
+                                     accessible name has to be supplied explicitly (WCAG 4.1.2). -->
                                 <Button Content="×" HorizontalAlignment="Right"
                                         Command="{Binding DataContext.RemoveCommand,
                                             RelativeSource={RelativeSource AncestorType=ListBox}}"
                                         CommandParameter="{Binding}"
-                                        Width="28" Height="28"
+                                        AutomationProperties.Name="Remover exclusão"
+                                        ToolTip="Remover esta exclusão"
+                                        Width="44" Height="44"
                                         Background="{StaticResource DangerBrush}" Foreground="White"
                                         BorderThickness="0" Cursor="Hand" FontSize="16"
                                         VerticalContentAlignment="Center"

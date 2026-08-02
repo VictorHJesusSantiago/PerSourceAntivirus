@@ -19,22 +19,22 @@
                 <!-- Total scanned -->
                 <Border Style="{StaticResource CardStyle}">
                     <StackPanel>
-                        <TextBlock Text="{Binding TotalScanned}" FontSize="36" FontWeight="Bold" Foreground="#333"/>
-                        <TextBlock Text="Files Scanned" Foreground="#666" FontSize="13"/>
+                        <TextBlock Text="{Binding TotalScanned}" FontSize="36" FontWeight="Bold" Foreground="{DynamicResource ContentTextPrimary}"/>
+                        <TextBlock Text="Files Scanned" Foreground="{DynamicResource ContentTextSecondary}" FontSize="13"/>
                     </StackPanel>
                 </Border>
                 <!-- Threats -->
                 <Border Style="{StaticResource CardStyle}">
                     <StackPanel>
                         <TextBlock Text="{Binding ThreatCount}" FontSize="36" FontWeight="Bold" Foreground="#FF4A4A"/>
-                        <TextBlock Text="Threats Detected" Foreground="#666" FontSize="13"/>
+                        <TextBlock Text="Threats Detected" Foreground="{DynamicResource ContentTextSecondary}" FontSize="13"/>
                     </StackPanel>
                 </Border>
                 <!-- Suspicious -->
                 <Border Style="{StaticResource CardStyle}">
                     <StackPanel>
                         <TextBlock Text="{Binding SuspiciousCount}" FontSize="36" FontWeight="Bold" Foreground="#FFB24A"/>
-                        <TextBlock Text="Suspicious Files" Foreground="#666" FontSize="13"/>
+                        <TextBlock Text="Suspicious Files" Foreground="{DynamicResource ContentTextSecondary}" FontSize="13"/>
                     </StackPanel>
                 </Border>
             </UniformGrid>
@@ -42,13 +42,13 @@
             <!-- Last scan -->
             <Border Style="{StaticResource CardStyle}" Margin="8,0,8,0">
                 <StackPanel>
-                    <TextBlock Text="Last Scan" FontSize="14" FontWeight="SemiBold" Foreground="#333" Margin="0,0,0,8"/>
-                    <TextBlock FontSize="13" Foreground="#555">
+                    <TextBlock Text="Last Scan" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource ContentTextPrimary}" Margin="0,0,0,8"/>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource ContentTextSecondary}">
                         <TextBlock.Text>
                             <Binding Path="LastScanTime" StringFormat="{}{0:yyyy-MM-dd HH:mm:ss}" FallbackValue="No scans yet"/>
                         </TextBlock.Text>
                     </TextBlock>
-                    <TextBlock Text="{Binding Status}" Foreground="#888" FontSize="12" Margin="0,4,0,0"/>
+                    <TextBlock Text="{Binding Status}" Foreground="{DynamicResource ContentTextMuted}" FontSize="12" Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
         </StackPanel>
