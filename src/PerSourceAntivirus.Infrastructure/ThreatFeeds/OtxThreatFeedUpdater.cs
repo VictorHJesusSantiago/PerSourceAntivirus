@@ -8,14 +8,13 @@ namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 // AlienVault OTX — pulls indicators from the subscribed-pulses feed. Requires an API key
 // (Settings > Threat Intel); with no key configured this becomes a graceful no-op, same
 // convention as VirusTotalHashReputationService.
-public sealed class OtxThreatFeedUpdater : IThreatFeedUpdater, IDisposable
+public sealed class OtxThreatFeedUpdater : IThreatFeedUpdater
 {
     public string FeedName => "AlienVault OTX";
 
     private const string ApiUrl = "https://otx.alienvault.com/api/v1/pulses/subscribed?limit=20";
 
-    private readonly HttpClient _http;
-    private readonly bool _ownsHttp;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly string _apiKey;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IBlocklistProvider _ipBlocklistProvider;
@@ -32,7 +31,7 @@ public sealed class OtxThreatFeedUpdater : IThreatFeedUpdater, IDisposable
         IDomainBlocklist domainBlocklist,
         string domainBlocklistFile,
         string cacheStateFile,
-        HttpClient? http = null)
+        IHttpClientFactory httpClientFactory)
     {
         _apiKey = apiKey;
         _scopeFactory = scopeFactory;
@@ -41,8 +40,7 @@ public sealed class OtxThreatFeedUpdater : IThreatFeedUpdater, IDisposable
         _domainBlocklist = domainBlocklist;
         _domainBlocklistFile = domainBlocklistFile;
         _cache = new FeedContentCache(cacheStateFile);
-        _ownsHttp = http is null;
-        _http = http ?? new HttpClient();
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<ThreatFeedUpdateResult> UpdateAsync(CancellationToken cancellationToken = default)
@@ -55,7 +53,8 @@ public sealed class OtxThreatFeedUpdater : IThreatFeedUpdater, IDisposable
             using var request = new HttpRequestMessage(HttpMethod.Get, ApiUrl);
             request.Headers.Add("X-OTX-API-KEY", _apiKey);
 
-            using var response = await _http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            using var http = _httpClientFactory.CreateClient(ThreatFeedHttpClient.Name);
+            using var response = await http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             var raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode)
@@ -144,5 +143,5 @@ public sealed class OtxThreatFeedUpdater : IThreatFeedUpdater, IDisposable
         return result;
     }
 
-    public void Dispose() { if (_ownsHttp) _http.Dispose(); }
+
 }

@@ -3,31 +3,32 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 
 // Downloads Feodo Tracker aggressive CSV blocklist; extracts destination IPs and rewrites ip-blocklist.txt.
-public sealed class FeodoTrackerUpdater : IThreatFeedUpdater, IDisposable
+public sealed class FeodoTrackerUpdater : IThreatFeedUpdater
 {
     public string FeedName => "Feodo Tracker";
 
     private const string FeedUrl =
         "https://feodotracker.abuse.ch/downloads/ipblocklist_aggressive.csv";
 
-    private readonly HttpClient _http;
-    private readonly bool _ownsHttp;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IBlocklistProvider _provider;
     private readonly string _blocklistFile;
 
-    public FeodoTrackerUpdater(IBlocklistProvider provider, string blocklistFile, HttpClient? http = null)
+    public FeodoTrackerUpdater(IBlocklistProvider provider, string blocklistFile, IHttpClientFactory httpClientFactory)
     {
-        _provider      = provider;
-        _blocklistFile = blocklistFile;
-        _ownsHttp      = http is null;
-        _http          = http ?? new HttpClient();
+        _provider          = provider;
+        _blocklistFile     = blocklistFile;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<ThreatFeedUpdateResult> UpdateAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var csv  = await _http.GetStringAsync(FeedUrl, cancellationToken);
+            // Created per call: the factory pools and rotates the underlying handler, so this is
+            // cheap and gives us fresh DNS — unlike a singleton HttpClient held for the app's life.
+            using var http = _httpClientFactory.CreateClient(ThreatFeedHttpClient.Name);
+            var csv  = await http.GetStringAsync(FeedUrl, cancellationToken);
             var ips  = ParseIps(csv);
             await File.WriteAllLinesAsync(_blocklistFile, ips, cancellationToken);
             _provider.Reload();
@@ -65,6 +66,4 @@ public sealed class FeodoTrackerUpdater : IThreatFeedUpdater, IDisposable
         }
         return ips;
     }
-
-    public void Dispose() { if (_ownsHttp) _http.Dispose(); }
 }
