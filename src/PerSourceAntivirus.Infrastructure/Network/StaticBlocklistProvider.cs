@@ -30,6 +30,10 @@ public class StaticBlocklistProvider : IBlocklistProvider
         _blockedAddresses = LoadAddresses(_blocklistFilePath);
     }
 
+    // Snapshot copy: _blockedAddresses is swapped wholesale by Reload(), so handing out the live
+    // set would let a caller enumerate it while a reload replaces it.
+    public IReadOnlyCollection<string> GetAllBlockedAddresses() => _blockedAddresses.ToArray();
+
     private static HashSet<string> LoadAddresses(string path)
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

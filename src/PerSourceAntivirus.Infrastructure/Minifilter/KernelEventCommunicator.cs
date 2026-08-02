@@ -27,7 +27,10 @@ internal struct PsavKernelEventReply
     public uint Acknowledged;            //  4 bytes
 }
 
-public class KernelEventCommunicator(IYaraScanner? yaraScanner = null) : IKernelEventMonitor
+// Note: an optional IYaraScanner constructor parameter used to be declared here but was never
+// referenced (Speculative Generality — the kernel event stream is surfaced to callers, which
+// decide what to scan). Removed; re-add it if this class ever scans inline.
+public class KernelEventCommunicator : IKernelEventMonitor
 {
     private const string EventPortName = @"\PSAVEventPort";
 
