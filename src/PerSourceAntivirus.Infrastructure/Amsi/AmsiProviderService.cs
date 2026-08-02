@@ -4,7 +4,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Amsi;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IAmsiProvider, AmsiProviderService>();
 [SupportedOSPlatform("windows")]
 public sealed class AmsiProviderService : IAmsiProvider
 {

@@ -5,7 +5,6 @@ using SharpCompress.Readers;
 
 namespace PerSourceAntivirus.Infrastructure.Archive;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IArchiveScanner, SharpCompressArchiveScanner>();
 public sealed class SharpCompressArchiveScanner : IArchiveScanner
 {
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
