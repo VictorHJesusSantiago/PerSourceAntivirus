@@ -135,6 +135,30 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ModuleStompingAlert> ModuleStompingAlerts => Set<ModuleStompingAlert>();
     public DbSet<TransactedHollowingAlert> TransactedHollowingAlerts => Set<TransactedHollowingAlert>();
 
+    // Phase 19 — DLL hijacking, cryptojacking, Authenticode/certificate trust, custom signatures
+    public DbSet<DllHijackAlert> DllHijackAlerts => Set<DllHijackAlert>();
+    public DbSet<CryptojackingAlert> CryptojackingAlerts => Set<CryptojackingAlert>();
+    public DbSet<UnsignedBinaryAlert> UnsignedBinaryAlerts => Set<UnsignedBinaryAlert>();
+    public DbSet<CustomSignatureMatch> CustomSignatureMatches => Set<CustomSignatureMatch>();
+    public DbSet<CertificateTrustEntry> CertificateTrustEntries => Set<CertificateTrustEntry>();
+    public DbSet<CertificateTrustAlert> CertificateTrustAlerts => Set<CertificateTrustAlert>();
+
+    // Phase 20 — network/GUI/SO/ML/observability enhancements
+    public DbSet<ProcessFirewallRule> ProcessFirewallRules => Set<ProcessFirewallRule>();
+    public DbSet<DnsTunnelingAlert> DnsTunnelingAlerts => Set<DnsTunnelingAlert>();
+    public DbSet<GeoIpBlockAlert> GeoIpBlockAlerts => Set<GeoIpBlockAlert>();
+    public DbSet<SecureBootStatusSnapshot> SecureBootStatusSnapshots => Set<SecureBootStatusSnapshot>();
+    public DbSet<UsbDeviceEvent> UsbDeviceEvents => Set<UsbDeviceEvent>();
+    public DbSet<ActiveLearningSample> ActiveLearningSamples => Set<ActiveLearningSample>();
+    public DbSet<RemoteAgentEvent> RemoteAgentEvents => Set<RemoteAgentEvent>();
+    public DbSet<AuditLogChainEntry> AuditLogChainEntries => Set<AuditLogChainEntry>();
+
+    // Phase 21 — threat intel scoring, response/remediation
+    public DbSet<HostIsolationEvent> HostIsolationEvents => Set<HostIsolationEvent>();
+    public DbSet<SampleSubmissionRecord> SampleSubmissionRecords => Set<SampleSubmissionRecord>();
+    public DbSet<ResponsePlaybookRule> ResponsePlaybookRules => Set<ResponsePlaybookRule>();
+    public DbSet<PlaybookExecutionLog> PlaybookExecutionLogs => Set<PlaybookExecutionLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ScannedFile>(builder =>
@@ -506,6 +530,168 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             builder.Property(h => h.SuspicionReason).IsRequired();
             builder.HasIndex(h => h.DetectedAtUtc);
             builder.HasIndex(h => h.ProcessId);
+        });
+
+        modelBuilder.Entity<DllHijackAlert>(builder =>
+        {
+            builder.HasKey(d => d.Id);
+            builder.Property(d => d.ProcessName).IsRequired();
+            builder.Property(d => d.DllName).IsRequired();
+            builder.Property(d => d.LoadedDllPath).IsRequired();
+            builder.Property(d => d.HijackType).IsRequired();
+            builder.HasIndex(d => d.DetectedAtUtc);
+        });
+
+        modelBuilder.Entity<CryptojackingAlert>(builder =>
+        {
+            builder.HasKey(c => c.Id);
+            builder.Property(c => c.ProcessName).IsRequired();
+            builder.Property(c => c.DetectionReason).IsRequired();
+            builder.HasIndex(c => c.DetectedAtUtc);
+        });
+
+        modelBuilder.Entity<UnsignedBinaryAlert>(builder =>
+        {
+            builder.HasKey(u => u.Id);
+            builder.Property(u => u.ProcessName).IsRequired();
+            builder.Property(u => u.FilePath).IsRequired();
+            builder.Property(u => u.Reason).IsRequired();
+            builder.HasIndex(u => u.DetectedAtUtc);
+        });
+
+        modelBuilder.Entity<CustomSignatureMatch>(builder =>
+        {
+            builder.HasKey(c => c.Id);
+            builder.Property(c => c.FilePath).IsRequired();
+            builder.Property(c => c.FileHashSha256).IsRequired();
+            builder.Property(c => c.SignatureName).IsRequired();
+            builder.Property(c => c.MatchType).IsRequired();
+            builder.HasIndex(c => c.DetectedAtUtc);
+            builder.HasIndex(c => c.FileHashSha256);
+        });
+
+        modelBuilder.Entity<CertificateTrustEntry>(builder =>
+        {
+            builder.HasKey(c => c.Id);
+            builder.Property(c => c.Thumbprint).IsRequired();
+            builder.Property(c => c.SubjectName).IsRequired();
+            builder.Property(c => c.TrustLevel).IsRequired();
+            builder.HasIndex(c => c.Thumbprint).IsUnique();
+        });
+
+        modelBuilder.Entity<CertificateTrustAlert>(builder =>
+        {
+            builder.HasKey(c => c.Id);
+            builder.Property(c => c.ProcessName).IsRequired();
+            builder.Property(c => c.FilePath).IsRequired();
+            builder.Property(c => c.Thumbprint).IsRequired();
+            builder.Property(c => c.SubjectName).IsRequired();
+            builder.Property(c => c.Reason).IsRequired();
+            builder.HasIndex(c => c.DetectedAtUtc);
+        });
+
+        modelBuilder.Entity<ProcessFirewallRule>(builder =>
+        {
+            builder.HasKey(p => p.Id);
+            builder.Property(p => p.ProcessPath).IsRequired();
+            builder.Property(p => p.Action).IsRequired();
+            builder.HasIndex(p => p.ProcessPath);
+        });
+
+        modelBuilder.Entity<DnsTunnelingAlert>(builder =>
+        {
+            builder.HasKey(d => d.Id);
+            builder.Property(d => d.SourceAddress).IsRequired();
+            builder.Property(d => d.QueryDomain).IsRequired();
+            builder.Property(d => d.DetectionReason).IsRequired();
+            builder.HasIndex(d => d.DetectedAtUtc);
+        });
+
+        modelBuilder.Entity<GeoIpBlockAlert>(builder =>
+        {
+            builder.HasKey(g => g.Id);
+            builder.Property(g => g.RemoteAddress).IsRequired();
+            builder.Property(g => g.CountryCode).IsRequired();
+            builder.Property(g => g.Direction).IsRequired();
+            builder.HasIndex(g => g.DetectedAtUtc);
+        });
+
+        modelBuilder.Entity<SecureBootStatusSnapshot>(builder =>
+        {
+            builder.HasKey(s => s.Id);
+            builder.Property(s => s.BootloaderPath).IsRequired();
+            builder.Property(s => s.BootloaderHashSha256).IsRequired();
+            builder.HasIndex(s => s.CheckedAtUtc);
+        });
+
+        modelBuilder.Entity<UsbDeviceEvent>(builder =>
+        {
+            builder.HasKey(u => u.Id);
+            builder.Property(u => u.PnpDeviceId).IsRequired();
+            builder.Property(u => u.Description).IsRequired();
+            builder.Property(u => u.ActionTaken).IsRequired();
+            builder.HasIndex(u => u.DetectedAtUtc);
+        });
+
+        modelBuilder.Entity<ActiveLearningSample>(builder =>
+        {
+            builder.HasKey(a => a.Id);
+            builder.Property(a => a.Sha256).IsRequired();
+            builder.Property(a => a.FeaturesJson).IsRequired();
+            builder.HasIndex(a => a.RecordedAtUtc);
+        });
+
+        modelBuilder.Entity<RemoteAgentEvent>(builder =>
+        {
+            builder.HasKey(r => r.Id);
+            builder.Property(r => r.SourceHost).IsRequired();
+            builder.Property(r => r.DeviceVendor).IsRequired();
+            builder.Property(r => r.DeviceProduct).IsRequired();
+            builder.Property(r => r.SignatureId).IsRequired();
+            builder.Property(r => r.Name).IsRequired();
+            builder.HasIndex(r => r.ReceivedAtUtc);
+        });
+
+        modelBuilder.Entity<AuditLogChainEntry>(builder =>
+        {
+            builder.HasKey(a => a.Id);
+            builder.Property(a => a.EventDescription).IsRequired();
+            builder.Property(a => a.PreviousHash).IsRequired();
+            builder.Property(a => a.EntryHash).IsRequired();
+            builder.HasIndex(a => a.SequenceNumber).IsUnique();
+        });
+
+        modelBuilder.Entity<HostIsolationEvent>(builder =>
+        {
+            builder.HasKey(h => h.Id);
+            builder.Property(h => h.Action).IsRequired();
+            builder.Property(h => h.Reason).IsRequired();
+            builder.HasIndex(h => h.TriggeredAtUtc);
+        });
+
+        modelBuilder.Entity<SampleSubmissionRecord>(builder =>
+        {
+            builder.HasKey(s => s.Id);
+            builder.Property(s => s.OriginalFilePath).IsRequired();
+            builder.Property(s => s.PackagedArchivePath).IsRequired();
+            builder.HasIndex(s => s.CreatedAtUtc);
+        });
+
+        modelBuilder.Entity<ResponsePlaybookRule>(builder =>
+        {
+            builder.HasKey(r => r.Id);
+            builder.Property(r => r.Name).IsRequired();
+            builder.Property(r => r.TriggerAlertType).IsRequired();
+            builder.Property(r => r.Actions).IsRequired();
+        });
+
+        modelBuilder.Entity<PlaybookExecutionLog>(builder =>
+        {
+            builder.HasKey(p => p.Id);
+            builder.Property(p => p.RuleName).IsRequired();
+            builder.Property(p => p.AlertType).IsRequired();
+            builder.Property(p => p.ActionsExecuted).IsRequired();
+            builder.HasIndex(p => p.ExecutedAtUtc);
         });
 
         modelBuilder.Entity<StackPivotAlert>(builder =>
