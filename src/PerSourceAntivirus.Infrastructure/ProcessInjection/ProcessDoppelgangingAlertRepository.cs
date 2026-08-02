@@ -5,7 +5,6 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 
-// TODO: Register in DependencyInjection.cs as: services.AddScoped<IProcessDoppelgangingAlertRepository, ProcessDoppelgangingAlertRepository>();
 public sealed class ProcessDoppelgangingAlertRepository(AppDbContext db) : IProcessDoppelgangingAlertRepository
 {
     public async Task AddAsync(ProcessDoppelgangingAlert alert, CancellationToken ct = default)

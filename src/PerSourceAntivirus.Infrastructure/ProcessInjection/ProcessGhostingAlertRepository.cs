@@ -5,7 +5,6 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 
-// TODO: Register in DependencyInjection.cs as: services.AddScoped<IProcessGhostingAlertRepository, ProcessGhostingAlertRepository>();
 public sealed class ProcessGhostingAlertRepository(AppDbContext db) : IProcessGhostingAlertRepository
 {
     public async Task AddAsync(ProcessGhostingAlert alert, CancellationToken ct = default)
