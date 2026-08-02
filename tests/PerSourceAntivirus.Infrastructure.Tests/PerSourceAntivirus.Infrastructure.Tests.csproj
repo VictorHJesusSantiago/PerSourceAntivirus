@@ -2,6 +2,11 @@
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
+    <!-- [AUDIT FIX — CRITICAL, Domain 17/18] Must match PerSourceAntivirus.Infrastructure's
+         net10.0-windows target. This project inherited plain net10.0 from Directory.Build.props,
+         so `dotnet test` failed at restore with NU1201 and NONE of the 22 Infrastructure test
+         files could compile or run — the suite was silently non-functional. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>

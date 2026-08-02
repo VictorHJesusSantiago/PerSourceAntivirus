@@ -70,4 +70,53 @@ public class StaticBlocklistProviderTests
         var action = () => new StaticBlocklistProvider(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()));
         action.Should().NotThrow();
     }
+
+    [Fact]
+    public void GetAllBlockedAddresses_ReturnsEveryEntry_ExcludingCommentsAndBlanks()
+    {
+        var filePath = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllLines(filePath, ["# comment", "", "198.51.100.23", "203.0.113.12"]);
+            var provider = new StaticBlocklistProvider(filePath);
+
+            provider.GetAllBlockedAddresses()
+                .Should().BeEquivalentTo(["198.51.100.23", "203.0.113.12"]);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    [Fact]
+    public void GetAllBlockedAddresses_ReturnsSnapshot_NotTheLiveSet()
+    {
+        // Reload() swaps the backing set wholesale; a caller mid-enumeration must not be affected.
+        var filePath = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllLines(filePath, ["198.51.100.23"]);
+            var provider = new StaticBlocklistProvider(filePath);
+            var before = provider.GetAllBlockedAddresses();
+
+            File.WriteAllLines(filePath, ["203.0.113.12"]);
+            provider.Reload();
+
+            before.Should().BeEquivalentTo(["198.51.100.23"]);
+            provider.GetAllBlockedAddresses().Should().BeEquivalentTo(["203.0.113.12"]);
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    [Fact]
+    public void GetAllBlockedAddresses_IsEmpty_WhenFileDoesNotExist()
+    {
+        var provider = new StaticBlocklistProvider(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()));
+
+        provider.GetAllBlockedAddresses().Should().BeEmpty();
+    }
 }
