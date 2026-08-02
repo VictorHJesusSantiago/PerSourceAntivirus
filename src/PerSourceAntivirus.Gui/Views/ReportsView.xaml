@@ -4,13 +4,13 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="24">
             <TextBlock Text="Reports &amp; Trends" FontSize="20" FontWeight="Bold"
-                       Foreground="#333" Margin="0,0,0,16"/>
+                       Foreground="{DynamicResource ContentTextPrimary}" Margin="0,0,0,16"/>
 
             <!-- Report generation -->
             <Border Style="{StaticResource CardStyle}">
                 <StackPanel>
                     <TextBlock Text="Generate Reports" FontSize="15" FontWeight="SemiBold"
-                               Foreground="#333" Margin="0,0,0,12"/>
+                               Foreground="{DynamicResource ContentTextPrimary}" Margin="0,0,0,12"/>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                         <Button Content="Generate Weekly Report"
                                 Command="{Binding GenerateWeeklyCommand}"
@@ -38,7 +38,7 @@
                         </TextBlock>
                     </StackPanel>
                     <TextBlock Text="{Binding LastReportPath, StringFormat=Last report: {0}}"
-                               FontSize="12" Foreground="#666"/>
+                               FontSize="12" Foreground="{DynamicResource ContentTextSecondary}"/>
                 </StackPanel>
             </Border>
 
@@ -47,9 +47,9 @@
                 <StackPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <TextBlock Text="Threat Types (Top 10)" FontSize="15" FontWeight="SemiBold"
-                                   Foreground="#333"/>
+                                   Foreground="{DynamicResource ContentTextPrimary}"/>
                         <TextBlock Margin="12,0,0,0" VerticalAlignment="Center" FontSize="12"
-                                   Foreground="#888">
+                                   Foreground="{DynamicResource ContentTextMuted}">
                             <Run Text="Total: "/>
                             <Run Text="{Binding TotalThreatCount}" FontWeight="SemiBold" Foreground="#E94560"/>
                         </TextBlock>
@@ -66,7 +66,7 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="{Binding AlertType}" FontSize="12"
                                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
-                                               Foreground="#444"/>
+                                               Foreground="{DynamicResource ContentTextPrimary}"/>
                                     <Border Grid.Column="1" Height="16" CornerRadius="3"
                                             HorizontalAlignment="Left"
                                             Width="{Binding BarWidth}"
@@ -79,7 +79,7 @@
                                         </Border.Background>
                                     </Border>
                                     <TextBlock Grid.Column="2" Text="{Binding Count}" FontSize="12"
-                                               Foreground="#555" Margin="6,0,0,0"
+                                               Foreground="{DynamicResource ContentTextSecondary}" Margin="6,0,0,0"
                                                VerticalAlignment="Center" FontWeight="SemiBold"/>
                                 </Grid>
                             </DataTemplate>
@@ -92,14 +92,14 @@
             <Border Style="{StaticResource CardStyle}">
                 <StackPanel>
                     <TextBlock Text="Daily Trend (Last 30 Days)" FontSize="15" FontWeight="SemiBold"
-                               Foreground="#333" Margin="0,0,0,10"/>
+                               Foreground="{DynamicResource ContentTextPrimary}" Margin="0,0,0,10"/>
 
                     <!-- Legend -->
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                         <Rectangle Width="24" Height="3" Fill="#5A7EFF" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                        <TextBlock Text="Alerts" FontSize="11" Foreground="#555" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <TextBlock Text="Alerts" FontSize="11" Foreground="{DynamicResource ContentTextSecondary}" VerticalAlignment="Center" Margin="0,0,12,0"/>
                         <Rectangle Width="24" Height="3" Fill="#E94560" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                        <TextBlock Text="Critical" FontSize="11" Foreground="#555" VerticalAlignment="Center"/>
+                        <TextBlock Text="Critical" FontSize="11" Foreground="{DynamicResource ContentTextSecondary}" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <!-- Chart canvas -->
@@ -125,8 +125,8 @@
                     <DataGrid ItemsSource="{Binding DailyTrend}" Margin="0,12,0,0"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               GridLinesVisibility="Horizontal" HeadersVisibility="Column"
-                              Background="White" RowBackground="White"
-                              AlternatingRowBackground="#FAFAFA" BorderThickness="0"
+                              Background="{DynamicResource CardBackground}" RowBackground="{DynamicResource CardBackground}"
+                              AlternatingRowBackground="{DynamicResource SubtleBackground}" BorderThickness="0"
                               MaxHeight="200">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Date"

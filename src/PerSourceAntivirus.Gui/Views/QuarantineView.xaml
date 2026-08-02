@@ -10,14 +10,14 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Quarantine" FontSize="18" FontWeight="Bold"
-                   Foreground="#333" Margin="0,0,0,12"/>
+                   Foreground="{DynamicResource ContentTextPrimary}" Margin="0,0,0,12"/>
 
         <DataGrid Grid.Row="1" ItemsSource="{Binding Items}"
                   SelectedItem="{Binding SelectedItem}"
                   AutoGenerateColumns="False" CanUserAddRows="False"
                   IsReadOnly="True" GridLinesVisibility="Horizontal"
                   HeadersVisibility="Column" BorderThickness="1" BorderBrush="#DDD"
-                  Background="White" SelectionMode="Single">
+                  Background="{DynamicResource CardBackground}" SelectionMode="Single">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="File Name" Binding="{Binding FileName}" Width="180"/>
                 <DataGridTextColumn Header="Original Path" Binding="{Binding OriginalPath}" Width="*"/>
