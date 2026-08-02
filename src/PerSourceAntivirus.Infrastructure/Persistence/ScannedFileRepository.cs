@@ -52,4 +52,19 @@ public class ScannedFileRepository(AppDbContext dbContext) : IScannedFileReposit
                 g => g.Key,
                 g => g.OrderByDescending(r => r.ScannedAtUtc).First().Sha256Hash);
     }
+
+    public async Task<(int totalMatches, int maliciousOrSuspiciousMatches)> CountByPathPrefixAsync(
+        string pathOrPrefix, CancellationToken cancellationToken = default)
+    {
+        var normalizedPrefix = pathOrPrefix.TrimEnd('\\', '/') + Path.DirectorySeparatorChar;
+
+        var matching = dbContext.ScannedFiles.AsNoTracking()
+            .Where(f => f.FilePath == pathOrPrefix || f.FilePath.StartsWith(normalizedPrefix));
+
+        var total = await matching.CountAsync(cancellationToken);
+        var suspiciousOrMalicious = await matching
+            .CountAsync(f => f.ThreatStatus != Domain.Enums.ThreatStatus.Clean, cancellationToken);
+
+        return (total, suspiciousOrMalicious);
+    }
 }

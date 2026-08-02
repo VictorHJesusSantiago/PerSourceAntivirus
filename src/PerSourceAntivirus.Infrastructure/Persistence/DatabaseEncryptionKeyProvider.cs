@@ -1,0 +1,36 @@
+using System.Runtime.Versioning;
+using System.Security.Cryptography;
+
+namespace PerSourceAntivirus.Infrastructure.Persistence;
+
+// Generates (or loads) the passphrase used to encrypt persourceav.db at rest via SQLCipher.
+// The passphrase itself is protected with DPAPI (current-user scope) so the on-disk key file
+// is useless without the same Windows user account that created it.
+[SupportedOSPlatform("windows")]
+public static class DatabaseEncryptionKeyProvider
+{
+    public static string GetOrCreatePassphrase(string keyFilePath)
+    {
+        var dir = Path.GetDirectoryName(keyFilePath);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+        if (File.Exists(keyFilePath))
+        {
+            try
+            {
+                var protectedBytes = File.ReadAllBytes(keyFilePath);
+                var unprotectedBytes = ProtectedData.Unprotect(protectedBytes, null, DataProtectionScope.CurrentUser);
+                return Convert.ToHexStringLower(unprotectedBytes);
+            }
+            catch
+            {
+                // Corrupt or from a different user profile — regenerate below.
+            }
+        }
+
+        var keyBytes = RandomNumberGenerator.GetBytes(32);
+        var protectedForDisk = ProtectedData.Protect(keyBytes, null, DataProtectionScope.CurrentUser);
+        File.WriteAllBytes(keyFilePath, protectedForDisk);
+        return Convert.ToHexStringLower(keyBytes);
+    }
+}
