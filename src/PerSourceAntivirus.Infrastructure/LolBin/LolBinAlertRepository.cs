@@ -5,7 +5,6 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure.LolBin;
 
-// TODO: Register in DependencyInjection.cs as: services.AddScoped<ILolBinAlertRepository, LolBinAlertRepository>();
 public class LolBinAlertRepository(AppDbContext db) : ILolBinAlertRepository
 {
     public async Task AddAsync(LolBinAlert alert, CancellationToken ct = default)

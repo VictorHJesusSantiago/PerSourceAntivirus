@@ -2,7 +2,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.LolBin;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<ILolBinDetector, LolBinDetector>();
 public sealed class LolBinDetector : ILolBinDetector
 {
     private static readonly LolBinEntry[] KnownLolBins =
