@@ -5,7 +5,6 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure.Dga;
 
-// TODO: Register in DependencyInjection.cs as: services.AddScoped<IDgaAlertRepository, DgaAlertRepository>();
 public class DgaAlertRepository(AppDbContext db) : IDgaAlertRepository
 {
     public async Task AddAsync(DgaAlert alert, CancellationToken ct = default)

@@ -3,7 +3,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Dga;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IDgaDetector, DgaDetector>();
 public sealed class DgaDetector : IDgaDetector
 {
     // NXDomain tracking: hostname → streak count
