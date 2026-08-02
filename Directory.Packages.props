@@ -30,6 +30,9 @@
     <!-- Infrastructure -->
     <PackageVersion Include="System.Management" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
+    <!-- IHttpClientFactory: pooled, rotating HttpMessageHandlers. Prevents socket exhaustion
+         from per-service `new HttpClient()` and the stale-DNS problem of a long-lived singleton. -->
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="9.0.0" />
     <PackageVersion Include="MetadataExtractor" Version="2.8.1" />
     <PackageVersion Include="OpenMcdf" Version="3.1.0" />
     <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.7" />

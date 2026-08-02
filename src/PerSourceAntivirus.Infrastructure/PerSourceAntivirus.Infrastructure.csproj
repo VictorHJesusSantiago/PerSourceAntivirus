@@ -23,6 +23,7 @@
     <PackageReference Include="PacketDotNet" />
     <PackageReference Include="System.Management" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="MetadataExtractor" />
     <PackageReference Include="OpenMcdf" />
     <PackageReference Include="Microsoft.PowerShell.SDK" />
