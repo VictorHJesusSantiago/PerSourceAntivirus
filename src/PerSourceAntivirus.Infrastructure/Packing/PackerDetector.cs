@@ -1,4 +1,3 @@
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IPackerDetector, PackerDetector>();
 
 using System.Text;
 using PerSourceAntivirus.Application.Common.Interfaces;

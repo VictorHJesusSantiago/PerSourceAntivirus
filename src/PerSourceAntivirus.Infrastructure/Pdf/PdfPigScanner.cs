@@ -3,7 +3,6 @@ using UglyToad.PdfPig;
 
 namespace PerSourceAntivirus.Infrastructure.Pdf;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IPdfScanner, PdfPigScanner>();
 public sealed class PdfPigScanner : IPdfScanner
 {
     public bool CanScan(string filePath)
