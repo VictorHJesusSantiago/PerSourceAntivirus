@@ -5,7 +5,6 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 
-// TODO: Register in DependencyInjection.cs as: services.AddScoped<ITransactedHollowingAlertRepository, TransactedHollowingAlertRepository>();
 public sealed class TransactedHollowingAlertRepository(AppDbContext db) : ITransactedHollowingAlertRepository
 {
     public async Task AddAsync(TransactedHollowingAlert alert, CancellationToken ct = default)
