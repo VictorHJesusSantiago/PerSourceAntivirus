@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    # windows-latest is mandatory: Infrastructure/Cli/Gui target net10.0-windows and the
+    # test suite exercises WMI/Win32 interop that has no Linux equivalent.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/Directory.Packages.props', '**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore PerSourceAntivirus.slnx
+
+      # Gate 1: the build must be clean. Directory.Build.props already promotes nullable
+      # violations to errors; -warnaserror makes every remaining *compiler* warning fail the build
+      # so the zero-warning state established by the audit cannot silently regress.
+      #
+      # NuGet (NU*) codes are excluded on purpose: they depend on which feeds a machine has
+      # configured (NU1507), on transitive version resolution outside our control (NU1608), and on
+      # advisory-database reachability (NU1900) — none of which are code-quality regressions.
+      # Dependency vulnerabilities are enforced properly by the security-scan job below.
+      #
+      # MSB3246 is also excluded: dnYara.NativePack ships native .dll payloads that MSBuild tries
+      # to read as managed assemblies. It is a packaging quirk of that dependency, not our code.
+      - name: Build (compiler warnings as errors)
+        run: >
+          dotnet build PerSourceAntivirus.slnx --no-restore -c Release -warnaserror
+          -warnnotaserror:NU1507,NU1603,NU1608,NU1701,NU1900,NU1901,NU1902,NU1903,NU1904,MSB3246
+
+      # Gate 2: all tests must pass. psav.runsettings forces serial execution because several
+      # Infrastructure tests touch the same filesystem paths.
+      - name: Test
+        run: >
+          dotnet test PerSourceAntivirus.slnx --no-build -c Release
+          --settings psav.runsettings
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ./TestResults
+
+  security-scan:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore PerSourceAntivirus.slnx
+
+      # Gate 3: no dependency with a known HIGH/CRITICAL advisory may enter main.
+      # `dotnet list package --vulnerable` exits 0 even when it finds vulnerabilities, so the
+      # output has to be inspected explicitly.
+      - name: Check for vulnerable dependencies
+        shell: pwsh
+        run: |
+          $output = dotnet list PerSourceAntivirus.slnx package --vulnerable --include-transitive 2>&1 | Out-String
+          Write-Host $output
+          if ($output -match '\bHigh\b|\bCritical\b') {
+            Write-Error "Dependencies with High/Critical vulnerabilities found."
+            exit 1
+          }
+          Write-Host "No High/Critical dependency vulnerabilities."
+
+      - name: Check for deprecated dependencies
+        shell: pwsh
+        continue-on-error: true
+        run: dotnet list PerSourceAntivirus.slnx package --deprecated
+
+  codeql:
+    runs-on: windows-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          queries: security-and-quality
+
+      - name: Build for analysis
+        run: dotnet build PerSourceAntivirus.slnx -c Release
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
