@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
@@ -9,8 +10,7 @@ namespace PerSourceAntivirus.Infrastructure.Kernel;
 [SupportedOSPlatform("windows")]
 public sealed class MbrRealtimeProtectionService : IMbrRealtimeProtection
 {
-    private readonly IMbrSnapshotRepository _snapshotRepo;
-    private readonly IMbrWriteAttemptRepository _writeAttemptRepo;
+    private readonly IServiceScopeFactory _scopeFactory;
     private volatile bool _active;
     private IntPtr _driveHandle = new IntPtr(-1);
     private byte[]? _baseline;
@@ -47,10 +47,22 @@ public sealed class MbrRealtimeProtectionService : IMbrRealtimeProtection
 
     public bool IsActive => _active;
 
-    public MbrRealtimeProtectionService(IMbrSnapshotRepository snapshotRepo, IMbrWriteAttemptRepository writeAttemptRepo)
+    // [AUDIT FIX — CRITICAL] Singleton capturing two scoped repositories (captive dependency).
+    // IMbrSnapshotRepository was also assigned and never read, so it was dropped entirely.
+    public MbrRealtimeProtectionService(IServiceScopeFactory scopeFactory)
     {
-        _snapshotRepo = snapshotRepo;
-        _writeAttemptRepo = writeAttemptRepo;
+        _scopeFactory = scopeFactory;
+    }
+
+    private async Task PersistAsync(MbrWriteAttemptAlert alert, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IMbrWriteAttemptRepository>();
+            await repository.AddAsync(alert, ct).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     public async Task StartAsync(CancellationToken ct)
@@ -154,7 +166,7 @@ public sealed class MbrRealtimeProtectionService : IMbrRealtimeProtection
             DetectedAtUtc = DateTime.UtcNow
         };
 
-        try { await _writeAttemptRepo.AddAsync(alert, ct); } catch { }
+        await PersistAsync(alert, ct).ConfigureAwait(false);
         WriteAttemptDetected?.Invoke(this, new MbrWriteAttemptEventArgs(alert));
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
@@ -9,7 +10,7 @@ using SysProcess = System.Diagnostics.Process;
 namespace PerSourceAntivirus.Infrastructure.Forensics;
 
 [SupportedOSPlatform("windows")]
-public sealed class FirmwareVariableMonitor(IFirmwareVariableSnapshotRepository repo) : IFirmwareVariableMonitor
+public sealed class FirmwareVariableMonitor(IServiceScopeFactory scopeFactory) : IFirmwareVariableMonitor
 {
     private static readonly (string Name, string Guid)[] UefiVariables =
     [
@@ -34,7 +35,14 @@ public sealed class FirmwareVariableMonitor(IFirmwareVariableSnapshotRepository 
 
     public async Task<IReadOnlyList<FirmwareVariableSnapshot>> ScanAsync(CancellationToken ct = default)
     {
-        var baseline = await repo.GetBaselineAsync(ct);
+        // [AUDIT FIX — CRITICAL] Was a singleton capturing the scoped repository; each access now
+        // gets its own scope/DbContext.
+        IReadOnlyList<FirmwareVariableSnapshot> baseline;
+        using (var scope = scopeFactory.CreateScope())
+        {
+            var repository = scope.ServiceProvider.GetRequiredService<IFirmwareVariableSnapshotRepository>();
+            baseline = await repository.GetBaselineAsync(ct).ConfigureAwait(false);
+        }
         var baselineMap = baseline.ToDictionary(
             s => s.VariableName,
             s => s.CurrentValueHash,
@@ -94,7 +102,11 @@ public sealed class FirmwareVariableMonitor(IFirmwareVariableSnapshotRepository 
             });
         }
 
-        await repo.AddRangeAsync(snapshots, ct);
+        using (var scope = scopeFactory.CreateScope())
+        {
+            var repository = scope.ServiceProvider.GetRequiredService<IFirmwareVariableSnapshotRepository>();
+            await repository.AddRangeAsync(snapshots, ct).ConfigureAwait(false);
+        }
         _baselineEstablished = true;
     }
 

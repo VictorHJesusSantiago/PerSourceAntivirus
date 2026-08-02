@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
@@ -10,7 +11,7 @@ using SysProcess = System.Diagnostics.Process;
 namespace PerSourceAntivirus.Infrastructure.Forensics;
 
 [SupportedOSPlatform("windows")]
-public sealed partial class MemoryForensicsService(IMemoryDumpResultRepository repo) : IMemoryForensicsService
+public sealed partial class MemoryForensicsService(IServiceScopeFactory scopeFactory) : IMemoryForensicsService
 {
     private const uint MiniDumpWithFullMemory = 0x00000002;
     private const uint PROCESS_ALL_ACCESS = 0x001F0FFF;
@@ -134,8 +135,13 @@ public sealed partial class MemoryForensicsService(IMemoryDumpResultRepository r
         }, ct);
     }
 
+    // [AUDIT FIX — CRITICAL] Was a singleton capturing the scoped IMemoryDumpResultRepository.
     public async Task SaveResultAsync(MemoryDumpResult result, CancellationToken ct = default)
-        => await repo.AddAsync(result, ct);
+    {
+        using var scope = scopeFactory.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IMemoryDumpResultRepository>();
+        await repository.AddAsync(result, ct).ConfigureAwait(false);
+    }
 
     private static IEnumerable<string> ExtractAsciiStrings(byte[] bytes, int minLength)
     {
