@@ -4,7 +4,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Files;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IAdsScanner, AdsScanner>();
 [SupportedOSPlatform("windows")]
 public sealed class AdsScanner : IAdsScanner
 {
