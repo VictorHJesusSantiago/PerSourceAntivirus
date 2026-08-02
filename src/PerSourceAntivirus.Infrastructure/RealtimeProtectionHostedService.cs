@@ -21,6 +21,7 @@ namespace PerSourceAntivirus.Infrastructure;
 public sealed class RealtimeProtectionHostedService(
     IServiceProvider services,
     IConfiguration configuration,
+    IDetectorDiagnostics diagnostics,
     ILogger<RealtimeProtectionHostedService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -30,6 +31,8 @@ public sealed class RealtimeProtectionHostedService(
             logger.LogInformation("Realtime protection disabled (RealtimeProtection:Enabled is not true) — no detectors started.");
             return;
         }
+
+        WirePlaybookResponses(stoppingToken);
 
         var tasks = new List<Task>();
 
@@ -81,16 +84,106 @@ public sealed class RealtimeProtectionHostedService(
 
         logger.LogInformation("Realtime protection enabled — starting {Count} detectors.", tasks.Count);
         await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        // Reaching here means every detector's monitoring loop has ended. During normal operation
+        // this only happens on shutdown; otherwise it means protection is entirely down.
+        if (!stoppingToken.IsCancellationRequested)
+            logger.LogError("All realtime detectors have stopped while protection was still enabled.");
+    }
+
+    // [AUDIT FIX — MEDIUM] ResponsePlaybookEngine was fully implemented, registered and covered by
+    // its own repositories, but nothing ever called EvaluateAsync — configured playbooks could
+    // never fire. Detectors expose AlertDetected events that had no subscribers either; wiring the
+    // two together here (one place, rather than injecting the engine into 42 detectors) is what
+    // turns "if X detected then kill/isolate/quarantine/notify" into actual behaviour.
+    private void WirePlaybookResponses(CancellationToken ct)
+    {
+        var engine = services.GetRequiredService<IResponsePlaybookEngine>();
+
+        void Dispatch(string alertType, int severity, int? pid, string? filePath)
+        {
+            // Fire-and-forget with the exception observed: an alert handler must never block or
+            // fault the detector thread that raised it.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await engine.EvaluateAsync(new PlaybookTriggerContext(alertType, severity, pid, filePath), ct)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Playbook evaluation failed for {AlertType}.", alertType);
+                }
+            }, ct);
+        }
+
+        Subscribe<ICryptojackingDetector, CryptojackingAlertEventArgs>(
+            d => h => d.AlertDetected += h,
+            e => Dispatch("Cryptojacking", e.Alert.Severity, e.Alert.ProcessId, null));
+
+        Subscribe<IDllHijackDetector, DllHijackAlertEventArgs>(
+            d => h => d.AlertDetected += h,
+            e => Dispatch("DllHijack", e.Alert.Severity, e.Alert.ProcessId, e.Alert.LoadedDllPath));
+
+        Subscribe<IUnsignedBinaryDetector, UnsignedBinaryAlertEventArgs>(
+            d => h => d.AlertDetected += h,
+            e => Dispatch("UnsignedBinary", e.Alert.Severity, e.Alert.ProcessId, e.Alert.FilePath));
+
+        Subscribe<ICertificateTrustDetector, CertificateTrustAlertEventArgs>(
+            d => h => d.AlertDetected += h,
+            e => Dispatch("BlacklistedCertificate", e.Alert.Severity, e.Alert.ProcessId, e.Alert.FilePath));
+
+        Subscribe<IHeapSprayDetector, HeapSprayAlertEventArgs>(
+            d => h => d.AlertDetected += h,
+            e => Dispatch("HeapSpray", e.Alert.Severity, e.Alert.ProcessId, null));
+
+        // The injector is the process to act on here, not the hollowed victim.
+        Subscribe<IProcessHollowingDetector, ProcessHollowingAlertEventArgs>(
+            d => h => d.AlertDetected += h,
+            e => Dispatch("ProcessHollowing", e.Alert.Severity, e.Alert.InjectorProcessId, null));
+    }
+
+    // Resolving the detector and attaching the handler is wrapped because a detector that fails
+    // to construct (missing native dependency, no admin rights) must not prevent the remaining
+    // playbook subscriptions from being wired.
+    private void Subscribe<TDetector, TArgs>(
+        Func<TDetector, Action<EventHandler<TArgs>>> attach,
+        Action<TArgs> onAlert)
+        where TDetector : notnull
+    {
+        try
+        {
+            var detector = services.GetRequiredService<TDetector>();
+            attach(detector)((_, args) =>
+            {
+                try { onAlert(args); }
+                catch (Exception ex) { logger.LogWarning(ex, "Alert handler failed for {Detector}.", typeof(TDetector).Name); }
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not wire playbook responses for {Detector}.", typeof(TDetector).Name);
+        }
     }
 
     // Isolates one detector's failure from the rest: a thrown exception (missing admin rights,
     // unavailable native API, etc.) is logged and only that detector stops — it must never
     // propagate into Task.WhenAll and tear down every other detector alongside it.
+    //
+    // [ADR-001] Outcomes are also recorded in IDetectorDiagnostics. A detector whose
+    // StartMonitoringAsync returns or throws is *dead* — it stopped monitoring. Recording that
+    // is what makes "42 detectors silently not running" detectable instead of invisible, which
+    // is precisely the failure mode this service was created to fix.
     private async Task RunAsync(string detectorName, Func<Task> start)
     {
         try
         {
             await start().ConfigureAwait(false);
+
+            // Returning at all means the monitoring loop ended before shutdown was requested.
+            logger.LogWarning("Detector {Detector} stopped monitoring unexpectedly (returned without cancellation).", detectorName);
+            diagnostics.RecordScanFailed(detectorName, "StoppedUnexpectedly");
         }
         catch (OperationCanceledException)
         {
@@ -99,6 +192,7 @@ public sealed class RealtimeProtectionHostedService(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Detector {Detector} stopped unexpectedly.", detectorName);
+            diagnostics.RecordScanFailed(detectorName, ex.GetType().Name, ex);
         }
     }
 }

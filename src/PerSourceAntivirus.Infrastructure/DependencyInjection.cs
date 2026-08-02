@@ -55,12 +55,22 @@ namespace PerSourceAntivirus.Infrastructure;
 
 public static class DependencyInjection
 {
-    // Shared HttpClient for services that do not own their own lifecycle.
-    // Using a single instance prevents socket exhaustion from short-lived service scopes.
-    private static readonly HttpClient SharedHttpClient = new();
-
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
+        // [AUDIT FIX — Domain 15] Every HTTP-calling service used to hold its own `new HttpClient()`
+        // (socket exhaustion + DNS that never refreshes) or share one process-wide static instance
+        // (no handler rotation). IHttpClientFactory pools and recycles handlers; services now call
+        // CreateClient() per request against these named policies.
+        services.AddHttpClient(PerSourceAntivirus.Infrastructure.ThreatFeeds.ThreatFeedHttpClient.Name, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(60);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("PerSourceAntivirus/1.0");
+        });
+        services.AddHttpClient(PerSourceAntivirus.Infrastructure.Siem.SyslogCefExporter.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+        });
+
         // Encrypt persourceav.db at rest via SQLCipher. The e_sqlcipher provider transparently
         // reads existing plaintext databases too, so this is safe to set unconditionally;
         // DatabaseEncryptionMigrator then converts any pre-existing plaintext file in place.
@@ -162,9 +172,12 @@ public static class DependencyInjection
         services.AddSingleton<IHashReputationService>(_ => new CompositeHashReputationService(localReputation, vtReputation));
 
         // Threat intelligence feed updaters (Group 3)
-        services.AddSingleton<IThreatFeedUpdater>(_ => new FeodoTrackerUpdater(blocklistProvider, blocklistFile));
-        services.AddSingleton<IThreatFeedUpdater>(_ => new MalwareBazaarUpdater(localReputation, localHashFile));
-        services.AddSingleton<IThreatFeedUpdater>(_ => new UrlhausUpdater(domainBlocklist, domainBlocklistFile));
+        services.AddSingleton<IThreatFeedUpdater>(sp => new FeodoTrackerUpdater(
+            blocklistProvider, blocklistFile, sp.GetRequiredService<IHttpClientFactory>()));
+        services.AddSingleton<IThreatFeedUpdater>(sp => new MalwareBazaarUpdater(
+            localReputation, localHashFile, sp.GetRequiredService<IHttpClientFactory>()));
+        services.AddSingleton<IThreatFeedUpdater>(sp => new UrlhausUpdater(
+            domainBlocklist, domainBlocklistFile, sp.GetRequiredService<IHttpClientFactory>()));
 
         // MBR protection (Group 4)
         services.AddSingleton<IMbrProtectionService, MbrProtectionService>();
@@ -237,7 +250,8 @@ public static class DependencyInjection
         var siemHost = configuration["Siem:Host"] ?? "127.0.0.1";
         var siemPort = int.TryParse(configuration["Siem:Port"], out var sp2) ? sp2 : -1;
         var siemApiKey = configuration["Siem:ApiKey"];
-        services.AddSingleton<ISiemExporter>(_ => new SyslogCefExporter(siemProtocol, siemHost, siemPort, siemApiKey));
+        services.AddSingleton<ISiemExporter>(sp => new SyslogCefExporter(
+            siemProtocol, siemHost, siemPort, siemApiKey, sp.GetRequiredService<IHttpClientFactory>()));
 
         // TLS inspection proxy + repository (Group 9)
         services.AddSingleton<ITlsInspector, LocalTlsProxy>();
@@ -365,7 +379,7 @@ public static class DependencyInjection
         services.AddScoped<IStixFeedImporter>(sp => new PerSourceAntivirus.Infrastructure.ThreatIntel.StixFeedImporter(
             sp.GetRequiredService<IStixFeedSourceRepository>(),
             sp.GetRequiredService<IStixIocRepository>(),
-            SharedHttpClient));
+            sp.GetRequiredService<IHttpClientFactory>()));
         services.AddScoped<IAlertTriageRepository, PerSourceAntivirus.Infrastructure.Investigation.AlertTriageRepository>();
         services.AddScoped<IIncidentRepository, PerSourceAntivirus.Infrastructure.Investigation.IncidentRepository>();
         services.AddScoped<IAlertTriageService, PerSourceAntivirus.Infrastructure.Investigation.AlertTriageService>();
@@ -521,14 +535,17 @@ public static class DependencyInjection
         services.AddSingleton<IThreatFeedUpdater>(sp => new PerSourceAntivirus.Infrastructure.ThreatFeeds.ThreatFoxUpdater(
             sp.GetRequiredService<IServiceScopeFactory>(),
             blocklistProvider, blocklistFile, domainBlocklist, domainBlocklistFile,
-            Path.Combine(threatIntelCacheDir, "threatfox.cache.json")));
+            Path.Combine(threatIntelCacheDir, "threatfox.cache.json"),
+            sp.GetRequiredService<IHttpClientFactory>()));
         services.AddSingleton<IThreatFeedUpdater>(sp => new PerSourceAntivirus.Infrastructure.ThreatFeeds.OtxThreatFeedUpdater(
             otxApiKey, sp.GetRequiredService<IServiceScopeFactory>(),
             blocklistProvider, blocklistFile, domainBlocklist, domainBlocklistFile,
-            Path.Combine(threatIntelCacheDir, "otx.cache.json")));
+            Path.Combine(threatIntelCacheDir, "otx.cache.json"),
+            sp.GetRequiredService<IHttpClientFactory>()));
         services.AddSingleton<IThreatFeedUpdater>(sp => new PerSourceAntivirus.Infrastructure.ThreatFeeds.PhishTankUpdater(
             sp.GetRequiredService<IServiceScopeFactory>(), domainBlocklist, domainBlocklistFile,
-            Path.Combine(threatIntelCacheDir, "phishtank.cache.json")));
+            Path.Combine(threatIntelCacheDir, "phishtank.cache.json"),
+            sp.GetRequiredService<IHttpClientFactory>()));
 
         // Phase 21 — Threat intel: aggregated IP/domain reputation scoring + STIX export
         services.AddSingleton<IIpDomainReputationScoringService, PerSourceAntivirus.Infrastructure.Reputation.IpDomainReputationScoringService>();
@@ -540,7 +557,7 @@ public static class DependencyInjection
 
         var samplePackageDir = Path.Combine(AppContext.BaseDirectory, "data", "sample-submissions");
         services.AddSingleton<ISampleSubmissionService>(sp => new PerSourceAntivirus.Infrastructure.Files.SampleSubmissionService(
-            sp.GetRequiredService<IServiceScopeFactory>(), SharedHttpClient, samplePackageDir));
+            sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<IHttpClientFactory>(), samplePackageDir));
         services.AddScoped<ISampleSubmissionRepository, PerSourceAntivirus.Infrastructure.Files.SampleSubmissionRepository>();
 
         services.AddScoped<IResponsePlaybookRuleRepository, PerSourceAntivirus.Infrastructure.Response.ResponsePlaybookRuleRepository>();
@@ -549,6 +566,10 @@ public static class DependencyInjection
             sp.GetRequiredService<IServiceScopeFactory>(), quarantineDir));
 
         services.AddSingleton<ISystemRestoreService, PerSourceAntivirus.Infrastructure.SystemIntegration.SystemRestoreService>();
+
+        // [ADR-001] Detector health registry. Singleton so counters accumulate across the whole
+        // process lifetime; consumed by the detectors, the hosted service and /metrics.
+        services.AddSingleton<IDetectorDiagnostics, PerSourceAntivirus.Infrastructure.Diagnostics.DetectorDiagnostics>();
 
         // [AUDIT FIX — CRITICAL] Composition root for the 42 real-time detectors that were
         // registered but never started (see RealtimeProtectionHostedService for details).
