@@ -18,6 +18,8 @@ public sealed class DetectorDiagnostics(ILogger<DetectorDiagnostics> logger) : I
         public long LastFailureTicks;
         public string? LastFailureReason;
         public double LastScanDurationSeconds;
+        public long ItemsInspected;
+        public long ItemsSkipped;
     }
 
     private readonly ConcurrentDictionary<string, Counters> _counters = new(StringComparer.Ordinal);
@@ -48,6 +50,13 @@ public sealed class DetectorDiagnostics(ILogger<DetectorDiagnostics> logger) : I
         Interlocked.Increment(ref c.AlertsRaised);
     }
 
+    // Counter-only by design — see IDetectorDiagnostics for why these are never logged.
+    public void RecordItemInspected(string detectorName)
+        => Interlocked.Increment(ref _counters.GetOrAdd(detectorName, _ => new Counters()).ItemsInspected);
+
+    public void RecordItemSkipped(string detectorName)
+        => Interlocked.Increment(ref _counters.GetOrAdd(detectorName, _ => new Counters()).ItemsSkipped);
+
     public IReadOnlyList<DetectorHealth> GetHealthSnapshot() =>
         _counters
             .Select(kv => new DetectorHealth(
@@ -58,7 +67,9 @@ public sealed class DetectorDiagnostics(ILogger<DetectorDiagnostics> logger) : I
                 TicksToUtc(Interlocked.Read(ref kv.Value.LastSuccessTicks)),
                 TicksToUtc(Interlocked.Read(ref kv.Value.LastFailureTicks)),
                 kv.Value.LastFailureReason,
-                kv.Value.LastScanDurationSeconds))
+                kv.Value.LastScanDurationSeconds,
+                Interlocked.Read(ref kv.Value.ItemsInspected),
+                Interlocked.Read(ref kv.Value.ItemsSkipped)))
             .OrderBy(h => h.DetectorName, StringComparer.Ordinal)
             .ToList();
 

@@ -71,6 +71,41 @@ public static class DetectorScanScope
         }
     }
 
+    // Resolve once per scan and reuse across the inner loop. Creating a scope per process would
+    // mean thousands of scope allocations every sweep, so this is deliberately hoisted out.
+    public static IDetectorDiagnostics? ResolveDiagnostics(IServiceScopeFactory scopeFactory)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            return scope.ServiceProvider.GetService<IDetectorDiagnostics>();
+        }
+        catch (ObjectDisposedException)
+        {
+            return null;
+        }
+    }
+
+    // Per-item wrapper for the inner "foreach process" loops. Counts the outcome without logging
+    // (see IDetectorDiagnostics) and never rethrows, preserving the existing behaviour where one
+    // inaccessible process does not abort the sweep over the remaining ones.
+    public static async Task RunItemAsync(
+        IDetectorDiagnostics? diagnostics,
+        string detectorName,
+        Func<Task> inspectItem)
+    {
+        try
+        {
+            await inspectItem().ConfigureAwait(false);
+            diagnostics?.RecordItemInspected(detectorName);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception)
+        {
+            diagnostics?.RecordItemSkipped(detectorName);
+        }
+    }
+
     public static void Run(
         IDetectorDiagnostics diagnostics,
         string detectorName,
