@@ -9,12 +9,12 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Attack Timeline" FontSize="20" FontWeight="Bold"
-                   Foreground="#333" Margin="0,0,0,16"/>
+                   Foreground="{DynamicResource ContentTextPrimary}" Margin="0,0,0,16"/>
 
         <!-- Filter bar -->
         <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,12">
             <StackPanel>
-                <TextBlock Text="Process ID (PID)" FontSize="12" Foreground="#555" Margin="0,0,0,4"/>
+                <TextBlock Text="Process ID (PID)" FontSize="12" Foreground="{DynamicResource ContentTextSecondary}" Margin="0,0,0,4"/>
                 <StackPanel Orientation="Horizontal">
                     <TextBox Text="{Binding ProcessIdInput, UpdateSourceTrigger=PropertyChanged}"
                              Width="160" Padding="8,6" FontSize="13" Margin="0,0,8,0"/>
@@ -36,7 +36,7 @@
                         </TextBlock.Style>
                     </TextBlock>
                 </StackPanel>
-                <TextBlock Text="{Binding Status}" FontSize="12" Foreground="#777" Margin="0,6,0,0"/>
+                <TextBlock Text="{Binding Status}" FontSize="12" Foreground="{DynamicResource ContentTextMuted}" Margin="0,6,0,0"/>
             </StackPanel>
         </Border>
 
@@ -49,7 +49,7 @@
                         <StackPanel Orientation="Horizontal" Margin="2,2">
                             <TextBlock Text="{Binding Icon}" FontSize="14" Width="20"
                                        VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding Time}" FontSize="11" Foreground="#999"
+                            <TextBlock Text="{Binding Time}" FontSize="11" Foreground="{DynamicResource ContentTextMuted}"
                                        Width="90" VerticalAlignment="Center" Margin="4,0,8,0"
                                        FontFamily="Consolas"/>
                             <TextBlock FontSize="13" VerticalAlignment="Center" TextWrapping="NoWrap"

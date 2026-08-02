@@ -9,7 +9,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Threats Detected" FontSize="18" FontWeight="Bold"
-                   Foreground="#333" Margin="0,0,0,12"/>
+                   Foreground="{DynamicResource ContentTextPrimary}" Margin="0,0,0,12"/>
 
         <!-- Search bar -->
         <TextBox Grid.Row="1" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
@@ -20,7 +20,7 @@
                     <Style.Resources>
                         <VisualBrush x:Key="HintBrush" TileMode="None" Opacity="0.5" Stretch="None" AlignmentX="Left">
                             <VisualBrush.Visual>
-                                <TextBlock Text="Search threats..." Foreground="#999" FontSize="13" Padding="2,0,0,0"/>
+                                <TextBlock Text="Search threats..." Foreground="{DynamicResource ContentTextMuted}" FontSize="13" Padding="2,0,0,0"/>
                             </VisualBrush.Visual>
                         </VisualBrush>
                     </Style.Resources>
@@ -31,8 +31,8 @@
         <!-- Threats list -->
         <DataGrid Grid.Row="2" ItemsSource="{Binding Threats}" AutoGenerateColumns="False"
                   CanUserAddRows="False" IsReadOnly="True" GridLinesVisibility="Horizontal"
-                  HeadersVisibility="Column" BorderThickness="0" Background="White"
-                  RowBackground="White" AlternatingRowBackground="#FAFAFA">
+                  HeadersVisibility="Column" BorderThickness="0" Background="{DynamicResource CardBackground}"
+                  RowBackground="{DynamicResource CardBackground}" AlternatingRowBackground="{DynamicResource SubtleBackground}">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="File" Binding="{Binding FileName}" Width="180"/>
                 <DataGridTextColumn Header="Path" Binding="{Binding FilePath}" Width="*"/>
