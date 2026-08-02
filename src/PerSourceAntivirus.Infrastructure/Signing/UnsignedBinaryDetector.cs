@@ -52,8 +52,7 @@ public sealed class UnsignedBinaryDetector : IUnsignedBinaryDetector
         {
             while (!ct.IsCancellationRequested && _running)
             {
-                try { await ScanOnceAsync(ct); }
-                catch (Exception) { }
+                await Diagnostics.DetectorScanScope.RunAsync(_scopeFactory, nameof(UnsignedBinaryDetector), () => ScanOnceAsync(ct));
                 await Task.Delay(TimeSpan.FromSeconds(25), ct);
             }
         }

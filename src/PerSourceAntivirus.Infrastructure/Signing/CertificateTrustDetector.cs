@@ -48,8 +48,7 @@ public sealed class CertificateTrustDetector : ICertificateTrustDetector
         {
             while (!ct.IsCancellationRequested && _running)
             {
-                try { await ScanOnceAsync(ct); }
-                catch (Exception) { }
+                await Diagnostics.DetectorScanScope.RunAsync(_scopeFactory, nameof(CertificateTrustDetector), () => ScanOnceAsync(ct));
                 await Task.Delay(TimeSpan.FromSeconds(45), ct);
             }
         }
