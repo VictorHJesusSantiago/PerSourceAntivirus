@@ -41,7 +41,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("RecordedAtUtc");
 
-                    b.ToTable("ActiveLearningSamples");
+                    b.ToTable("ActiveLearningSamples", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AdsStreamInfo", b =>
@@ -71,7 +71,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ScannedFileId");
 
-                    b.ToTable("AdsStreamInfos");
+                    b.ToTable("AdsStreamInfos", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AlertTriage", b =>
@@ -119,7 +119,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("AlertTriages");
+                    b.ToTable("AlertTriages", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AmsiBypassAlert", b =>
@@ -159,7 +159,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("AmsiBypassAlerts");
+                    b.ToTable("AmsiBypassAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AmsiScanEvent", b =>
@@ -185,7 +185,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ScannedAtUtc");
 
-                    b.ToTable("AmsiScanEvents");
+                    b.ToTable("AmsiScanEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ApiCallSequenceAlert", b =>
@@ -229,7 +229,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("ApiCallSequenceAlerts");
+                    b.ToTable("ApiCallSequenceAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AppWhitelistEntry", b =>
@@ -266,7 +266,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("EntryType", "Value");
 
-                    b.ToTable("AppWhitelistEntries");
+                    b.ToTable("AppWhitelistEntries", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ArchiveEntryResult", b =>
@@ -302,7 +302,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ArchiveScannedFileId");
 
-                    b.ToTable("ArchiveEntryResults");
+                    b.ToTable("ArchiveEntryResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ArpSpoofingAlert", b =>
@@ -344,7 +344,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("ArpSpoofingAlerts");
+                    b.ToTable("ArpSpoofingAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AtomBombingAlert", b =>
@@ -380,7 +380,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("AtomBombingAlerts");
+                    b.ToTable("AtomBombingAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AuditLogChainEntry", b =>
@@ -412,7 +412,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("SequenceNumber")
                         .IsUnique();
 
-                    b.ToTable("AuditLogChainEntries");
+                    b.ToTable("AuditLogChainEntries", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AutostartEntry", b =>
@@ -459,7 +459,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsSuspicious");
 
-                    b.ToTable("AutostartEntries");
+                    b.ToTable("AutostartEntries", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.BeaconingAnalysis", b =>
@@ -512,7 +512,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("BeaconingAnalyses");
+                    b.ToTable("BeaconingAnalyses", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.BrowserCredentialAccessAlert", b =>
@@ -551,7 +551,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("BrowserCredentialAccessAlerts");
+                    b.ToTable("BrowserCredentialAccessAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.BrowserExtensionFinding", b =>
@@ -599,7 +599,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsSuspicious");
 
-                    b.ToTable("BrowserExtensionFindings");
+                    b.ToTable("BrowserExtensionFindings", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CertificateTrustAlert", b =>
@@ -641,7 +641,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("CertificateTrustAlerts");
+                    b.ToTable("CertificateTrustAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CertificateTrustEntry", b =>
@@ -673,7 +673,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("Thumbprint")
                         .IsUnique();
 
-                    b.ToTable("CertificateTrustEntries");
+                    b.ToTable("CertificateTrustEntries", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CfgViolationAlert", b =>
@@ -713,7 +713,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("CfgViolationAlerts");
+                    b.ToTable("CfgViolationAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ClipboardHijackAlert", b =>
@@ -754,7 +754,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("ClipboardHijackAlerts");
+                    b.ToTable("ClipboardHijackAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ComHijackAlert", b =>
@@ -792,7 +792,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("ComHijackAlerts");
+                    b.ToTable("ComHijackAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CryptojackingAlert", b =>
@@ -831,7 +831,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("CryptojackingAlerts");
+                    b.ToTable("CryptojackingAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CustomIoc", b =>
@@ -871,7 +871,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IocType", "Value");
 
-                    b.ToTable("CustomIocs");
+                    b.ToTable("CustomIocs", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.CustomSignatureMatch", b =>
@@ -908,7 +908,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("FileHashSha256");
 
-                    b.ToTable("CustomSignatureMatches");
+                    b.ToTable("CustomSignatureMatches", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.DgaAlert", b =>
@@ -945,7 +945,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsDga");
 
-                    b.ToTable("DgaAlerts");
+                    b.ToTable("DgaAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.DirectSyscallAlert", b =>
@@ -985,7 +985,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("DirectSyscallAlerts");
+                    b.ToTable("DirectSyscallAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.DllHijackAlert", b =>
@@ -1026,7 +1026,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("DllHijackAlerts");
+                    b.ToTable("DllHijackAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.DnsQueryEvent", b =>
@@ -1058,7 +1058,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DnsQueryEvents");
+                    b.ToTable("DnsQueryEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.DnsTunnelingAlert", b =>
@@ -1098,7 +1098,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("DnsTunnelingAlerts");
+                    b.ToTable("DnsTunnelingAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.EmailScanResult", b =>
@@ -1140,7 +1140,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ScannedFileId");
 
-                    b.ToTable("EmailScanResults");
+                    b.ToTable("EmailScanResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.EmulationResult", b =>
@@ -1173,7 +1173,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("EmulatedAtUtc");
 
-                    b.ToTable("EmulationResults");
+                    b.ToTable("EmulationResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ExploitFinding", b =>
@@ -1209,7 +1209,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("ExploitFindings");
+                    b.ToTable("ExploitFindings", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.FileActivityEvent", b =>
@@ -1262,7 +1262,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProcessId");
 
-                    b.ToTable("FileActivityEvents");
+                    b.ToTable("FileActivityEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.FileMetadataAnalysisResult", b =>
@@ -1304,7 +1304,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("ScannedFileId")
                         .IsUnique();
 
-                    b.ToTable("FileMetadataResults");
+                    b.ToTable("FileMetadataResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.FilelessAlert", b =>
@@ -1338,7 +1338,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("FilelessAlerts");
+                    b.ToTable("FilelessAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.FirmwareVariableSnapshot", b =>
@@ -1379,7 +1379,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SnapshotAtUtc");
 
-                    b.ToTable("FirmwareVariableSnapshots");
+                    b.ToTable("FirmwareVariableSnapshots", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.GeoIpBlockAlert", b =>
@@ -1410,7 +1410,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("GeoIpBlockAlerts");
+                    b.ToTable("GeoIpBlockAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.HashReputationResult", b =>
@@ -1446,7 +1446,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("ScannedFileId")
                         .IsUnique();
 
-                    b.ToTable("HashReputationResults");
+                    b.ToTable("HashReputationResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.HeapSprayAlert", b =>
@@ -1487,7 +1487,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProcessId");
 
-                    b.ToTable("HeapSprayAlerts");
+                    b.ToTable("HeapSprayAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.HeavensGateAlert", b =>
@@ -1527,7 +1527,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("HeavensGateAlerts");
+                    b.ToTable("HeavensGateAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.HoneypotFile", b =>
@@ -1562,7 +1562,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("HoneypotFiles");
+                    b.ToTable("HoneypotFiles", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.HostIsolationEvent", b =>
@@ -1586,7 +1586,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TriggeredAtUtc");
 
-                    b.ToTable("HostIsolationEvents");
+                    b.ToTable("HostIsolationEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.HypervisorDetectionResult", b =>
@@ -1619,7 +1619,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsVirtualMachine");
 
-                    b.ToTable("HypervisorDetectionResults");
+                    b.ToTable("HypervisorDetectionResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.Incident", b =>
@@ -1660,7 +1660,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("Incidents");
+                    b.ToTable("Incidents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.KernelPatchGuardAlert", b =>
@@ -1693,7 +1693,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("KernelPatchGuardAlerts");
+                    b.ToTable("KernelPatchGuardAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.KeyloggerDetectionAlert", b =>
@@ -1733,7 +1733,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("KeyloggerDetectionAlerts");
+                    b.ToTable("KeyloggerDetectionAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.LlmnrPoisoningAlert", b =>
@@ -1780,7 +1780,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("LlmnrPoisoningAlerts");
+                    b.ToTable("LlmnrPoisoningAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.LolBinAlert", b =>
@@ -1821,7 +1821,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("LolBinAlerts");
+                    b.ToTable("LolBinAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.MbrSnapshot", b =>
@@ -1851,7 +1851,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DriveIndex", "IsBaseline");
 
-                    b.ToTable("MbrSnapshots");
+                    b.ToTable("MbrSnapshots", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.MbrWriteAttemptAlert", b =>
@@ -1892,7 +1892,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("MbrWriteAttemptAlerts");
+                    b.ToTable("MbrWriteAttemptAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.MemoryDumpResult", b =>
@@ -1940,7 +1940,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProcessId");
 
-                    b.ToTable("MemoryDumpResults");
+                    b.ToTable("MemoryDumpResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.MicrophoneAccessEvent", b =>
@@ -1973,7 +1973,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("MicrophoneAccessEvents");
+                    b.ToTable("MicrophoneAccessEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.MitreAttackMapping", b =>
@@ -2014,7 +2014,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("AlertType")
                         .IsUnique();
 
-                    b.ToTable("MitreAttackMappings");
+                    b.ToTable("MitreAttackMappings", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ModuleStompingAlert", b =>
@@ -2063,7 +2063,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("ModuleStompingAlerts");
+                    b.ToTable("ModuleStompingAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.NetworkBehaviorAlert", b =>
@@ -2102,7 +2102,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("NetworkBehaviorAlerts");
+                    b.ToTable("NetworkBehaviorAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.NetworkBehaviorProfile", b =>
@@ -2139,7 +2139,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("ProcessName")
                         .IsUnique();
 
-                    b.ToTable("NetworkBehaviorProfiles");
+                    b.ToTable("NetworkBehaviorProfiles", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.NetworkConnectionEvent", b =>
@@ -2179,7 +2179,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("NetworkConnectionEvents");
+                    b.ToTable("NetworkConnectionEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.NetworkIntrusionAlert", b =>
@@ -2233,7 +2233,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("NetworkIntrusionAlerts");
+                    b.ToTable("NetworkIntrusionAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.NotificationRecord", b =>
@@ -2280,7 +2280,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("NotificationRecords");
+                    b.ToTable("NotificationRecords", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.NtdllUnhookingAlert", b =>
@@ -2317,7 +2317,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("NtdllUnhookingAlerts");
+                    b.ToTable("NtdllUnhookingAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.OfficeMacroAnalysisResult", b =>
@@ -2353,7 +2353,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("ScannedFileId")
                         .IsUnique();
 
-                    b.ToTable("OfficeMacroResults");
+                    b.ToTable("OfficeMacroResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.OpenPortInfo", b =>
@@ -2403,7 +2403,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ScannedAtUtc");
 
-                    b.ToTable("OpenPortInfos");
+                    b.ToTable("OpenPortInfos", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ParentChildAnomalyAlert", b =>
@@ -2446,7 +2446,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("ParentChildAnomalyAlerts");
+                    b.ToTable("ParentChildAnomalyAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PdfScanResult", b =>
@@ -2493,7 +2493,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ScannedFileId");
 
-                    b.ToTable("PdfScanResults");
+                    b.ToTable("PdfScanResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PeAnalysisResult", b =>
@@ -2530,7 +2530,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("ScannedFileId")
                         .IsUnique();
 
-                    b.ToTable("PeAnalysisResults");
+                    b.ToTable("PeAnalysisResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PeMlPrediction", b =>
@@ -2564,7 +2564,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Classification");
 
-                    b.ToTable("PeMlPredictions");
+                    b.ToTable("PeMlPredictions", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PeSection", b =>
@@ -2590,7 +2590,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PeAnalysisResultId");
 
-                    b.ToTable("PeSections");
+                    b.ToTable("PeSections", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PlaybookExecutionLog", b =>
@@ -2636,7 +2636,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExecutedAtUtc");
 
-                    b.ToTable("PlaybookExecutionLogs");
+                    b.ToTable("PlaybookExecutionLogs", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PortScanAlert", b =>
@@ -2675,7 +2675,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("PortScanAlerts");
+                    b.ToTable("PortScanAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ProcessCommandLineAlert", b =>
@@ -2714,7 +2714,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("ProcessCommandLineAlerts");
+                    b.ToTable("ProcessCommandLineAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ProcessCreationEvent", b =>
@@ -2772,7 +2772,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProcessId");
 
-                    b.ToTable("ProcessCreationEvents");
+                    b.ToTable("ProcessCreationEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ProcessDoppelgangingAlert", b =>
@@ -2809,7 +2809,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("ProcessDoppelgangingAlerts");
+                    b.ToTable("ProcessDoppelgangingAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ProcessEvent", b =>
@@ -2847,7 +2847,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ProcessEvents");
+                    b.ToTable("ProcessEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ProcessFirewallRule", b =>
@@ -2874,7 +2874,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProcessPath");
 
-                    b.ToTable("ProcessFirewallRules");
+                    b.ToTable("ProcessFirewallRules", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ProcessGhostingAlert", b =>
@@ -2914,7 +2914,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("ProcessGhostingAlerts");
+                    b.ToTable("ProcessGhostingAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ProcessHollowingAlert", b =>
@@ -2956,7 +2956,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("ProcessHollowingAlerts");
+                    b.ToTable("ProcessHollowingAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.PuaAlert", b =>
@@ -3002,7 +3002,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("PuaAlerts");
+                    b.ToTable("PuaAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.RansomwareAlert", b =>
@@ -3043,7 +3043,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("RansomwareAlerts");
+                    b.ToTable("RansomwareAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ReflectiveDllInjectionAlert", b =>
@@ -3086,7 +3086,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TargetProcessId");
 
-                    b.ToTable("ReflectiveDllInjectionAlerts");
+                    b.ToTable("ReflectiveDllInjectionAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.RegistryActivityEvent", b =>
@@ -3136,7 +3136,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ProcessId");
 
-                    b.ToTable("RegistryActivityEvents");
+                    b.ToTable("RegistryActivityEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.RemoteAgentEvent", b =>
@@ -3178,7 +3178,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ReceivedAtUtc");
 
-                    b.ToTable("RemoteAgentEvents");
+                    b.ToTable("RemoteAgentEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ResponsePlaybookRule", b =>
@@ -3210,7 +3210,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ResponsePlaybookRules");
+                    b.ToTable("ResponsePlaybookRules", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.RootkitFinding", b =>
@@ -3246,7 +3246,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("RootkitFindings");
+                    b.ToTable("RootkitFindings", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SafeFolderViolationAlert", b =>
@@ -3285,7 +3285,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("WasBlocked");
 
-                    b.ToTable("SafeFolderViolationAlerts");
+                    b.ToTable("SafeFolderViolationAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SampleSubmissionRecord", b =>
@@ -3321,7 +3321,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedAtUtc");
 
-                    b.ToTable("SampleSubmissionRecords");
+                    b.ToTable("SampleSubmissionRecords", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ScanProfile", b =>
@@ -3365,7 +3365,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsDefault");
 
-                    b.ToTable("ScanProfiles");
+                    b.ToTable("ScanProfiles", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ScannedFile", b =>
@@ -3410,7 +3410,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ScannedFiles");
+                    b.ToTable("ScannedFiles", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ScheduledScan", b =>
@@ -3437,7 +3437,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ScheduledScans");
+                    b.ToTable("ScheduledScans", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ScreenCaptureAlert", b =>
@@ -3474,7 +3474,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("ScreenCaptureAlerts");
+                    b.ToTable("ScreenCaptureAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ScreenLockerAlert", b =>
@@ -3516,7 +3516,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("ScreenLockerAlerts");
+                    b.ToTable("ScreenLockerAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ScriptAnalysisResult", b =>
@@ -3552,7 +3552,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
                     b.HasIndex("ScannedFileId")
                         .IsUnique();
 
-                    b.ToTable("ScriptAnalysisResults");
+                    b.ToTable("ScriptAnalysisResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ScriptSandboxResult", b =>
@@ -3600,7 +3600,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Verdict");
 
-                    b.ToTable("ScriptSandboxResults");
+                    b.ToTable("ScriptSandboxResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SecureBootStatusSnapshot", b =>
@@ -3636,7 +3636,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CheckedAtUtc");
 
-                    b.ToTable("SecureBootStatusSnapshots");
+                    b.ToTable("SecureBootStatusSnapshots", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SecurityPostureIssue", b =>
@@ -3677,7 +3677,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("SecurityPostureIssues");
+                    b.ToTable("SecurityPostureIssues", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SensitiveDataFinding", b =>
@@ -3713,7 +3713,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("FoundAtUtc");
 
-                    b.ToTable("SensitiveDataFindings");
+                    b.ToTable("SensitiveDataFindings", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ServiceAuditFinding", b =>
@@ -3757,7 +3757,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AuditedAtUtc");
 
-                    b.ToTable("ServiceAuditFindings");
+                    b.ToTable("ServiceAuditFindings", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SmbLateralMovementAlert", b =>
@@ -3798,7 +3798,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("SmbLateralMovementAlerts");
+                    b.ToTable("SmbLateralMovementAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.StackPivotAlert", b =>
@@ -3840,7 +3840,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("StackPivotAlerts");
+                    b.ToTable("StackPivotAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SteganographyAlert", b =>
@@ -3878,7 +3878,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsSuspicious");
 
-                    b.ToTable("SteganographyAlerts");
+                    b.ToTable("SteganographyAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.StixFeedSource", b =>
@@ -3914,7 +3914,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("StixFeedSources");
+                    b.ToTable("StixFeedSources", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.StixIoc", b =>
@@ -3954,7 +3954,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IocType", "Value");
 
-                    b.ToTable("StixIocs");
+                    b.ToTable("StixIocs", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.SupplyChainAlert", b =>
@@ -3999,7 +3999,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Severity");
 
-                    b.ToTable("SupplyChainAlerts");
+                    b.ToTable("SupplyChainAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.ThreatReport", b =>
@@ -4044,7 +4044,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ReportType");
 
-                    b.ToTable("ThreatReports");
+                    b.ToTable("ThreatReports", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.TlsCertAlert", b =>
@@ -4099,7 +4099,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Hostname");
 
-                    b.ToTable("TlsCertAlerts");
+                    b.ToTable("TlsCertAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.TlsInspectionEvent", b =>
@@ -4147,7 +4147,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsSuspicious");
 
-                    b.ToTable("TlsInspectionEvents");
+                    b.ToTable("TlsInspectionEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.TransactedHollowingAlert", b =>
@@ -4184,7 +4184,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("TransactedHollowingAlerts");
+                    b.ToTable("TransactedHollowingAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.UefiFinding", b =>
@@ -4218,7 +4218,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("UefiFindings");
+                    b.ToTable("UefiFindings", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.UnpackingResult", b =>
@@ -4251,7 +4251,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("UnpackingResults");
+                    b.ToTable("UnpackingResults", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.UnsignedBinaryAlert", b =>
@@ -4291,7 +4291,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("UnsignedBinaryAlerts");
+                    b.ToTable("UnsignedBinaryAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.UsbDeviceEvent", b =>
@@ -4325,7 +4325,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("UsbDeviceEvents");
+                    b.ToTable("UsbDeviceEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.UserAccountAuditFinding", b =>
@@ -4371,7 +4371,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AuditedAtUtc");
 
-                    b.ToTable("UserAccountAuditFindings");
+                    b.ToTable("UserAccountAuditFindings", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.VssSnapshotEvent", b =>
@@ -4406,7 +4406,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedAtUtc");
 
-                    b.ToTable("VssSnapshotEvents");
+                    b.ToTable("VssSnapshotEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.VulnerableSoftwareAlert", b =>
@@ -4454,7 +4454,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("VulnerableSoftwareAlerts");
+                    b.ToTable("VulnerableSoftwareAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.WebcamAccessEvent", b =>
@@ -4491,7 +4491,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("WebcamAccessEvents");
+                    b.ToTable("WebcamAccessEvents", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.WfpBlock", b =>
@@ -4524,7 +4524,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IpAddress", "IsActive");
 
-                    b.ToTable("WfpBlocks");
+                    b.ToTable("WfpBlocks", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.WmiPersistenceAlert", b =>
@@ -4571,7 +4571,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("WmiPersistenceAlerts");
+                    b.ToTable("WmiPersistenceAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.WpadAbuseAlert", b =>
@@ -4610,7 +4610,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DetectedAtUtc");
 
-                    b.ToTable("WpadAbuseAlerts");
+                    b.ToTable("WpadAbuseAlerts", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.YaraMatch", b =>
@@ -4634,7 +4634,7 @@ namespace PerSourceAntivirus.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ScannedFileId");
 
-                    b.ToTable("YaraMatches");
+                    b.ToTable("YaraMatches", (string)null);
                 });
 
             modelBuilder.Entity("PerSourceAntivirus.Domain.Entities.AdsStreamInfo", b =>
