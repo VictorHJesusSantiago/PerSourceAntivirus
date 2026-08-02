@@ -1,6 +1,5 @@
 namespace PerSourceAntivirus.Domain.Entities;
 
-// TODO: Add DbSet to AppDbContext
 public class LolBinAlert
 {
     public Guid Id { get; set; }
