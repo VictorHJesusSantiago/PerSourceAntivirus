@@ -4,7 +4,6 @@ using SixLabors.ImageSharp.PixelFormats;
 
 namespace PerSourceAntivirus.Infrastructure.Steganography;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<ISteganographyDetector, LsbSteganographyDetector>();
 public sealed class LsbSteganographyDetector : ISteganographyDetector
 {
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
