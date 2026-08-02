@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using System.Management;
 using System.Runtime.Versioning;
@@ -10,7 +11,7 @@ namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 [SupportedOSPlatform("windows")]
 public sealed class ProcessGhostingDetector : IProcessGhostingDetector, IDisposable
 {
-    private readonly IProcessGhostingAlertRepository _repository;
+    private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _scopeFactory;
     private readonly ConcurrentDictionary<int, DateTime> _checkedPids = new();
     private volatile bool _running;
     private ManagementEventWatcher? _watcher;
@@ -26,9 +27,24 @@ public sealed class ProcessGhostingDetector : IProcessGhostingDetector, IDisposa
 
     public event EventHandler<ProcessGhostingAlertEventArgs>? AlertDetected;
 
-    public ProcessGhostingDetector(IProcessGhostingAlertRepository repository)
+    public ProcessGhostingDetector(Microsoft.Extensions.DependencyInjection.IServiceScopeFactory scopeFactory)
     {
-        _repository = repository;
+        _scopeFactory = scopeFactory;
+    }
+
+    // [AUDIT FIX — CRITICAL] This detector is a singleton but used to take a *scoped*
+    // IProcessGhostingAlertRepository directly (captive dependency): one AppDbContext captured for the
+    // process lifetime and written to from background scan threads, where it is not thread-safe.
+    // Scope-per-write is the pattern CLAUDE.md mandates for exactly this reason.
+    private async Task PersistAsync(ProcessGhostingAlert alert, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IProcessGhostingAlertRepository>();
+            await repository.AddAsync(alert, ct).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     public async Task StartMonitoringAsync(CancellationToken ct)
@@ -197,13 +213,13 @@ public sealed class ProcessGhostingDetector : IProcessGhostingDetector, IDisposa
             }
         }
 
-        // Check 3: file exists but is not accessible (potential pending-delete)
-        bool isAccessible = false;
+        // Check 3: file exists but is not accessible (potential pending-delete).
+        // The open itself is the probe — success means "accessible", and only the IOException
+        // path below raises an alert, so no flag needs to be captured.
         try
         {
             using var fs = new System.IO.FileStream(imagePath, System.IO.FileMode.Open,
                 System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite);
-            isAccessible = true;
         }
         catch (System.IO.IOException ioEx)
         {
@@ -230,8 +246,7 @@ public sealed class ProcessGhostingDetector : IProcessGhostingDetector, IDisposa
 
     private async Task FireAlertAsync(ProcessGhostingAlert alert, CancellationToken ct)
     {
-        try { await _repository.AddAsync(alert, ct); }
-        catch (Exception) { }
+        await PersistAsync(alert, ct).ConfigureAwait(false);
         AlertDetected?.Invoke(this, new ProcessGhostingAlertEventArgs(alert));
     }
 
