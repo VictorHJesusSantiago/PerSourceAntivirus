@@ -20,12 +20,6 @@ public sealed class CryptojackingDetector : ICryptojackingDetector
     private readonly ConcurrentDictionary<int, DateTime> _alerted = new();
     private volatile bool _running;
 
-    private static readonly HashSet<int> MiningPoolPorts = new()
-    {
-        3333, 3334, 3335, 3336, 4444, 5555, 5556, 7777, 8080, 8888,
-        9999, 14444, 14433, 45700, 4028, 3032, 1800, 8118, 20535
-    };
-
     public event EventHandler<CryptojackingAlertEventArgs>? AlertDetected;
 
     public CryptojackingDetector(IServiceScopeFactory scopeFactory)
@@ -72,11 +66,18 @@ public sealed class CryptojackingDetector : ICryptojackingDetector
         catch (Exception) { return; }
 
         var now = DateTime.UtcNow;
+        // Resolved once per sweep, not per process — see DetectorScanScope.ResolveDiagnostics.
+        var diagnostics = Diagnostics.DetectorScanScope.ResolveDiagnostics(_scopeFactory);
+
         foreach (var proc in processes)
         {
             if (ct.IsCancellationRequested) break;
-            try { await EvaluateProcessAsync(proc, connectionsByPid, now, ct); }
-            catch (Exception) { }
+            try
+            {
+                await Diagnostics.DetectorScanScope.RunItemAsync(
+                    diagnostics, nameof(CryptojackingDetector),
+                    () => EvaluateProcessAsync(proc, connectionsByPid, now, ct));
+            }
             finally { proc.Dispose(); }
         }
     }
@@ -100,28 +101,27 @@ public sealed class CryptojackingDetector : ICryptojackingDetector
 
         if (pid <= 4) return;
 
+        // CPU sampling and the correlation rule live in CryptojackingHeuristics so they can be
+        // unit tested without a live process table.
         double cpuPercent = 0;
         if (_lastCpuTime.TryGetValue(pid, out var prevCpu) && _lastSampleAt.TryGetValue(pid, out var prevAt))
         {
-            var elapsedWall = (now - prevAt).TotalMilliseconds * Environment.ProcessorCount;
-            var elapsedCpu = (totalCpu - prevCpu).TotalMilliseconds;
-            if (elapsedWall > 0) cpuPercent = Math.Max(0, Math.Min(100, elapsedCpu / elapsedWall * 100));
+            cpuPercent = Detection.Heuristics.CryptojackingHeuristics.CalculateCpuPercent(
+                prevCpu, totalCpu, prevAt, now, Environment.ProcessorCount);
         }
         _lastCpuTime[pid] = totalCpu;
         _lastSampleAt[pid] = now;
 
         connectionsByPid.TryGetValue(pid, out var connections);
-        var poolConnection = connections?.FirstOrDefault(c => MiningPoolPorts.Contains(c.port));
+        var poolConnection = connections?.FirstOrDefault(
+            c => Detection.Heuristics.CryptojackingHeuristics.IsMiningPoolPort(c.port));
         bool hasPoolPort = poolConnection is { address.Length: > 0 };
-        bool sustainedHighCpu = cpuPercent >= 80.0;
 
-        if (!hasPoolPort && !sustainedHighCpu) return;
+        var verdict = Detection.Heuristics.CryptojackingHeuristics.Evaluate(hasPoolPort, cpuPercent);
+        if (verdict is null) return;
 
-        string reason;
-        int severity;
-        if (hasPoolPort && sustainedHighCpu) { reason = "MiningPoolPortAndHighCpu"; severity = 9; }
-        else if (hasPoolPort) { reason = "MiningPoolPort"; severity = 6; }
-        else { return; } // High CPU alone is too noisy without a corroborating network signal
+        string reason = verdict.Reason;
+        int severity = verdict.Severity;
 
         if (_alerted.TryGetValue(pid, out var last) && (now - last).TotalMinutes < 10) return;
         _alerted[pid] = now;
