@@ -34,7 +34,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
 
     private readonly string _caPath;
     private readonly Channel<TlsInspectionEvent> _channel;
-    private readonly Channel<TlsCertAlert> _certAlertChannel;
     private readonly ConcurrentDictionary<string, X509Certificate2> _certCache = new();
     private readonly ConcurrentDictionary<string, DateTime> _certAlertDedup = new(StringComparer.OrdinalIgnoreCase);
     private readonly IServiceScopeFactory? _scopeFactory;
@@ -50,12 +49,9 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
     {
         _caPath = caPath;
         _scopeFactory = scopeFactory;
+        // Note: unlike _channel (drained by WatchAsync), certificate alerts have no channel —
+        // see RaiseCertAlert for why.
         _channel = Channel.CreateUnbounded<TlsInspectionEvent>(new UnboundedChannelOptions
-        {
-            SingleWriter = false,
-            SingleReader = false
-        });
-        _certAlertChannel = Channel.CreateUnbounded<TlsCertAlert>(new UnboundedChannelOptions
         {
             SingleWriter = false,
             SingleReader = false
@@ -581,7 +577,11 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
                 DetectedAtUtc = now
             };
 
-            _certAlertChannel.Writer.TryWrite(alert);
+            // [AUDIT FIX — HIGH, Domain 15/16] An unbounded Channel<TlsCertAlert> used to be
+            // written here and never read by anyone — every certificate alert stayed in memory
+            // for the lifetime of the process (a slow leak proportional to HTTPS traffic).
+            // The alert already has two real consumption paths: durable persistence below and
+            // the CertAlertDetected event for in-process subscribers. The channel added nothing.
             _ = PersistAsync(alert);
             CertAlertDetected?.Invoke(this, new TlsCertAlertEventArgs(alert));
         }
@@ -626,7 +626,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
         _cts?.Dispose();
         _listener?.Stop();
         _channel.Writer.TryComplete();
-        _certAlertChannel.Writer.TryComplete();
         foreach (var cert in _certCache.Values)
             cert.Dispose();
         _certCache.Clear();

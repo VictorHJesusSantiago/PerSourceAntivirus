@@ -13,13 +13,13 @@ public sealed class StixFeedImporter : IStixFeedImporter
 
     private readonly IStixFeedSourceRepository _feedRepo;
     private readonly IStixIocRepository        _iocRepo;
-    private readonly HttpClient                _http;
+    private readonly IHttpClientFactory        _httpClientFactory;
 
-    public StixFeedImporter(IStixFeedSourceRepository feedRepo, IStixIocRepository iocRepo, HttpClient http)
+    public StixFeedImporter(IStixFeedSourceRepository feedRepo, IStixIocRepository iocRepo, IHttpClientFactory httpClientFactory)
     {
-        _feedRepo = feedRepo;
-        _iocRepo  = iocRepo;
-        _http     = http;
+        _feedRepo          = feedRepo;
+        _iocRepo           = iocRepo;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<int> ImportFromUrlAsync(string url, string feedName, CancellationToken ct = default)
@@ -30,7 +30,8 @@ public sealed class StixFeedImporter : IStixFeedImporter
         string json;
         try
         {
-            json = await _http.GetStringAsync(url, cts.Token);
+            using var http = _httpClientFactory.CreateClient(ThreatFeeds.ThreatFeedHttpClient.Name);
+            json = await http.GetStringAsync(url, cts.Token);
         }
         catch (Exception)
         {
