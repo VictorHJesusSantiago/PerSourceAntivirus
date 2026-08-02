@@ -7,7 +7,6 @@ using SysProcess = System.Diagnostics.Process;
 
 namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IReflectiveDllInjectionDetector, ReflectiveDllInjectionDetector>();
 [SupportedOSPlatform("windows")]
 public sealed class ReflectiveDllInjectionDetector : IReflectiveDllInjectionDetector
 {

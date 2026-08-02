@@ -5,7 +5,6 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 
-// TODO: Register in DependencyInjection.cs as: services.AddScoped<IReflectiveDllInjectionAlertRepository, ReflectiveDllInjectionAlertRepository>();
 public sealed class ReflectiveDllInjectionAlertRepository(AppDbContext db) : IReflectiveDllInjectionAlertRepository
 {
     public async Task AddAsync(ReflectiveDllInjectionAlert alert, CancellationToken ct = default)
