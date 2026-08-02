@@ -15,6 +15,14 @@ public interface IDetectorDiagnostics
     void RecordScanFailed(string detectorName, string reason, Exception? exception = null);
     void RecordAlertRaised(string detectorName);
 
+    // Per-item outcome inside one scan (one process, one module). Counters only — deliberately
+    // never logged: these loops touch every process on the machine every few seconds and
+    // "access denied" on a protected process is the normal case, so logging each one would bury
+    // real failures. The *ratio* is the signal: a detector inspecting 0 of 300 processes is
+    // blind, and only a counter makes that visible (ADR-001 step 3).
+    void RecordItemInspected(string detectorName);
+    void RecordItemSkipped(string detectorName);
+
     IReadOnlyList<DetectorHealth> GetHealthSnapshot();
 }
 
@@ -26,4 +34,6 @@ public record DetectorHealth(
     DateTime? LastSuccessfulScanUtc,
     DateTime? LastFailureUtc,
     string? LastFailureReason,
-    double LastScanDurationSeconds);
+    double LastScanDurationSeconds,
+    long ItemsInspected = 0,
+    long ItemsSkipped = 0);
