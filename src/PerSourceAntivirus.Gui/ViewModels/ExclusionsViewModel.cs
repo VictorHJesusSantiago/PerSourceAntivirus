@@ -3,13 +3,16 @@ using System.IO;
 using System.Text.Json;
 using System.Windows.Input;
 using Microsoft.Extensions.Configuration;
+using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Gui.ViewModels;
 
 public class ExclusionsViewModel : ViewModelBase
 {
     private readonly IConfiguration _config;
+    private readonly IScannedFileRepository _scannedFileRepository;
     private string _newExclusion = string.Empty;
+    private string _impactPreviewMessage = string.Empty;
 
     public ObservableCollection<string> Exclusions { get; } = [];
 
@@ -19,19 +22,56 @@ public class ExclusionsViewModel : ViewModelBase
         set => Set(ref _newExclusion, value);
     }
 
+    public string ImpactPreviewMessage
+    {
+        get => _impactPreviewMessage;
+        private set => Set(ref _impactPreviewMessage, value);
+    }
+
     public ICommand AddCommand { get; }
     public ICommand RemoveCommand { get; }
     public ICommand ImportCommand { get; }
     public ICommand ExportCommand { get; }
+    public ICommand PreviewImpactCommand { get; }
 
-    public ExclusionsViewModel(IConfiguration config)
+    public ExclusionsViewModel(IConfiguration config, IScannedFileRepository scannedFileRepository)
     {
         _config = config;
+        _scannedFileRepository = scannedFileRepository;
         AddCommand = new RelayCommand(AddExclusion);
         RemoveCommand = new RelayCommand<string>(s => { RemoveExclusion(s); return Task.CompletedTask; });
         ImportCommand = new RelayCommand(ImportExclusions);
         ExportCommand = new RelayCommand(ExportExclusions);
+        PreviewImpactCommand = new RelayCommand(() => _ = PreviewImpactAsync());
         LoadExclusions();
+    }
+
+    private async Task PreviewImpactAsync()
+    {
+        var pattern = _newExclusion.Trim();
+        if (pattern.Length == 0)
+        {
+            ImpactPreviewMessage = "Digite um caminho ou padrão para pré-visualizar o impacto.";
+            return;
+        }
+
+        ImpactPreviewMessage = "Calculando impacto...";
+        try
+        {
+            // [AUDIT FIX — MEDIUM, Domain 12] Previously called GetAllAsync(), which loads every
+            // ScannedFile row (plus YaraMatches/PeAnalysis/ScriptAnalysis/HashReputation includes)
+            // into memory just to count matches in C#. CountByPathPrefixAsync pushes the filter
+            // and count into SQL — no full-table load, cost independent of DB size.
+            var (matchCount, maliciousInMatch) = await _scannedFileRepository.CountByPathPrefixAsync(pattern);
+
+            ImpactPreviewMessage = maliciousInMatch > 0
+                ? $"⚠ Afeta {matchCount} arquivo(s) já escaneado(s), incluindo {maliciousInMatch} marcado(s) como suspeito/malicioso — revise antes de excluir."
+                : $"Afeta {matchCount} arquivo(s) já escaneado(s) (nenhum suspeito/malicioso entre eles).";
+        }
+        catch (Exception ex)
+        {
+            ImpactPreviewMessage = $"Erro ao calcular impacto: {ex.Message}";
+        }
     }
 
     private void LoadExclusions()

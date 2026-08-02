@@ -10,12 +10,27 @@ public class SettingsViewModel : ViewModelBase
 {
     private readonly IConfiguration _config;
     private readonly SafeModeScanScheduler _scheduler;
+    private readonly ThemeManager _themeManager;
     private string _yaraRulesDirectory = string.Empty;
     private bool _realtimeProtectionEnabled;
     private string _quarantineDirectory = string.Empty;
     private int _scanMaxParallelism = 4;
     private bool _dnsSinkholeEnabled;
     private string _siemProtocol = "None";
+    private string _theme = ThemeManager.Light;
+
+    public string Theme
+    {
+        get => _theme;
+        set
+        {
+            var changed = !string.Equals(_theme, value, StringComparison.OrdinalIgnoreCase);
+            Set(ref _theme, value);
+            if (changed) _themeManager.ApplyTheme(value);
+        }
+    }
+
+    public IReadOnlyList<string> AvailableThemes { get; } = [ThemeManager.Light, ThemeManager.Dark];
 
     public string YaraRulesDirectory
     {
@@ -62,10 +77,11 @@ public class SettingsViewModel : ViewModelBase
     public ICommand SaveCommand { get; }
     public ICommand ScheduleRebootScanCommand { get; }
 
-    public SettingsViewModel(IConfiguration config, SafeModeScanScheduler scheduler)
+    public SettingsViewModel(IConfiguration config, SafeModeScanScheduler scheduler, ThemeManager themeManager)
     {
         _config = config;
         _scheduler = scheduler;
+        _themeManager = themeManager;
         LoadFromConfig();
         SaveCommand = new RelayCommand(SaveToFile);
         ScheduleRebootScanCommand = new RelayCommand(ScheduleRebootScan);
@@ -82,6 +98,7 @@ public class SettingsViewModel : ViewModelBase
         _scanMaxParallelism = int.TryParse(_config["Scanning:MaxParallelism"], out var mp) ? mp : 4;
         _dnsSinkholeEnabled = bool.TryParse(_config["Dns:SinkholeEnabled"], out var dns) && dns;
         _siemProtocol = _config["Siem:Protocol"] ?? "None";
+        _theme = _config["Gui:Theme"] ?? ThemeManager.Light;
     }
 
     private void SaveToFile()
@@ -107,6 +124,7 @@ public class SettingsViewModel : ViewModelBase
             root["Scanning"] = new { MaxParallelism = _scanMaxParallelism };
             root["Dns"] = new { SinkholeEnabled = _dnsSinkholeEnabled };
             root["Siem"] = new { Protocol = _siemProtocol };
+            root["Gui"] = new { Theme = _theme };
 
             File.WriteAllText(path, JsonSerializer.Serialize(root, new JsonSerializerOptions { WriteIndented = true }));
             SaveMessage = "Settings saved.";
