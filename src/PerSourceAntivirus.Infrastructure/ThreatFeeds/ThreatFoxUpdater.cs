@@ -9,14 +9,13 @@ namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 // Abuse.ch ThreatFox — pulls recent IOCs (IP:port, domain, URL, hash) via the public JSON API
 // and both (a) records them as CustomIoc entries for hunting/triage and (b) feeds IP/domain
 // blocklists so they are enforced immediately.
-public sealed class ThreatFoxUpdater : IThreatFeedUpdater, IDisposable
+public sealed class ThreatFoxUpdater : IThreatFeedUpdater
 {
     public string FeedName => "ThreatFox";
 
     private const string ApiUrl = "https://threatfox-api.abuse.ch/api/v1/";
 
-    private readonly HttpClient _http;
-    private readonly bool _ownsHttp;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IBlocklistProvider _ipBlocklistProvider;
     private readonly string _ipBlocklistFile;
@@ -31,7 +30,7 @@ public sealed class ThreatFoxUpdater : IThreatFeedUpdater, IDisposable
         IDomainBlocklist domainBlocklist,
         string domainBlocklistFile,
         string cacheStateFile,
-        HttpClient? http = null)
+        IHttpClientFactory httpClientFactory)
     {
         _scopeFactory = scopeFactory;
         _ipBlocklistProvider = ipBlocklistProvider;
@@ -39,8 +38,7 @@ public sealed class ThreatFoxUpdater : IThreatFeedUpdater, IDisposable
         _domainBlocklist = domainBlocklist;
         _domainBlocklistFile = domainBlocklistFile;
         _cache = new FeedContentCache(cacheStateFile);
-        _ownsHttp = http is null;
-        _http = http ?? new HttpClient();
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<ThreatFeedUpdateResult> UpdateAsync(CancellationToken cancellationToken = default)
@@ -51,7 +49,8 @@ public sealed class ThreatFoxUpdater : IThreatFeedUpdater, IDisposable
                 JsonSerializer.Serialize(new { query = "get_iocs", days = 1 }),
                 Encoding.UTF8, "application/json");
 
-            using var response = await _http.PostAsync(ApiUrl, requestBody, cancellationToken).ConfigureAwait(false);
+            using var http = _httpClientFactory.CreateClient(ThreatFeedHttpClient.Name);
+            using var response = await http.PostAsync(ApiUrl, requestBody, cancellationToken).ConfigureAwait(false);
             var raw = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
             if (!_cache.HasChangedAndRecord(FeedName, raw))
@@ -144,5 +143,5 @@ public sealed class ThreatFoxUpdater : IThreatFeedUpdater, IDisposable
         return result;
     }
 
-    public void Dispose() { if (_ownsHttp) _http.Dispose(); }
+
 }

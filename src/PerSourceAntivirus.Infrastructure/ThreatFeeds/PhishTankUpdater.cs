@@ -7,14 +7,13 @@ namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 // PhishTank — bulk CSV of verified-online phishing URLs; extracts the registered domain from
 // each URL and feeds the domain blocklist (used for both file/script analysis and DNS/hosts
 // filtering) plus records the raw URL as a CustomIoc for hunting.
-public sealed class PhishTankUpdater : IThreatFeedUpdater, IDisposable
+public sealed class PhishTankUpdater : IThreatFeedUpdater
 {
     public string FeedName => "PhishTank";
 
     private const string FeedUrl = "http://data.phishtank.com/data/online-valid.csv";
 
-    private readonly HttpClient _http;
-    private readonly bool _ownsHttp;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IDomainBlocklist _domainBlocklist;
     private readonly string _domainBlocklistFile;
@@ -25,21 +24,21 @@ public sealed class PhishTankUpdater : IThreatFeedUpdater, IDisposable
         IDomainBlocklist domainBlocklist,
         string domainBlocklistFile,
         string cacheStateFile,
-        HttpClient? http = null)
+        IHttpClientFactory httpClientFactory)
     {
         _scopeFactory = scopeFactory;
         _domainBlocklist = domainBlocklist;
         _domainBlocklistFile = domainBlocklistFile;
         _cache = new FeedContentCache(cacheStateFile);
-        _ownsHttp = http is null;
-        _http = http ?? new HttpClient();
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<ThreatFeedUpdateResult> UpdateAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var csv = await _http.GetStringAsync(FeedUrl, cancellationToken).ConfigureAwait(false);
+            using var http = _httpClientFactory.CreateClient(ThreatFeedHttpClient.Name);
+            var csv = await http.GetStringAsync(FeedUrl, cancellationToken).ConfigureAwait(false);
 
             if (!_cache.HasChangedAndRecord(FeedName, csv))
                 return new ThreatFeedUpdateResult(FeedName, 0, 0, true, "No change since last update");
@@ -138,5 +137,5 @@ public sealed class PhishTankUpdater : IThreatFeedUpdater, IDisposable
         return fields;
     }
 
-    public void Dispose() { if (_ownsHttp) _http.Dispose(); }
+
 }

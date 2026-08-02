@@ -5,30 +5,29 @@ namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 
 // Downloads the URLhaus text blocklist, extracts hostnames from URLs, and rewrites
 // domain-blocklist.txt, then reloads StaticDomainBlocklist in-process.
-public sealed class UrlhausUpdater : IThreatFeedUpdater, IDisposable
+public sealed class UrlhausUpdater : IThreatFeedUpdater
 {
     public string FeedName => "URLhaus";
 
     private const string FeedUrl = "https://urlhaus.abuse.ch/downloads/text/";
 
-    private readonly HttpClient _http;
-    private readonly bool _ownsHttp;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly StaticDomainBlocklist _domainBlocklist;
     private readonly string _domainFile;
 
-    public UrlhausUpdater(StaticDomainBlocklist domainBlocklist, string domainFile, HttpClient? http = null)
+    public UrlhausUpdater(StaticDomainBlocklist domainBlocklist, string domainFile, IHttpClientFactory httpClientFactory)
     {
-        _domainBlocklist = domainBlocklist;
-        _domainFile      = domainFile;
-        _ownsHttp        = http is null;
-        _http            = http ?? new HttpClient();
+        _domainBlocklist   = domainBlocklist;
+        _domainFile        = domainFile;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<ThreatFeedUpdateResult> UpdateAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var text    = await _http.GetStringAsync(FeedUrl, cancellationToken);
+            using var http = _httpClientFactory.CreateClient(ThreatFeedHttpClient.Name);
+            var text    = await http.GetStringAsync(FeedUrl, cancellationToken);
             var domains = ParseDomains(text);
             await File.WriteAllLinesAsync(_domainFile, domains, cancellationToken);
             _domainBlocklist.Reload();
@@ -61,6 +60,4 @@ public sealed class UrlhausUpdater : IThreatFeedUpdater, IDisposable
 
         return domains;
     }
-
-    public void Dispose() { if (_ownsHttp) _http.Dispose(); }
 }
