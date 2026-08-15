@@ -19,7 +19,6 @@ public class ExportSiemBatchCommandHandler(
 
         var payloads = new List<SiemEventPayload>();
 
-        // Scan results with YARA matches
         var scannedFiles = await scannedFileRepo.GetAllAsync(cancellationToken);
         foreach (var file in scannedFiles.Take(request.MaxEvents))
         {
@@ -50,7 +49,6 @@ public class ExportSiemBatchCommandHandler(
             }
         }
 
-        // Network connection events (blocked)
         var networkEvents = await networkRepo.GetAllAsync(onlyBlocklisted: true, cancellationToken: cancellationToken);
         foreach (var evt in networkEvents.Take(request.MaxEvents))
         {
@@ -76,7 +74,6 @@ public class ExportSiemBatchCommandHandler(
             ));
         }
 
-        // Ransomware alerts
         var ransomwareAlerts = await ransomwareRepo.GetAllAsync(onlyCritical: false, ct: cancellationToken);
         foreach (var alert in ransomwareAlerts.Take(request.MaxEvents))
         {
@@ -111,7 +108,6 @@ public class ExportSiemBatchCommandHandler(
             ));
         }
 
-        // WFP blocks triggered
         var wfpBlocks = await wfpRepo.GetAllAsync(cancellationToken);
         foreach (var block in wfpBlocks.Where(b => b.IsActive).Take(request.MaxEvents))
         {

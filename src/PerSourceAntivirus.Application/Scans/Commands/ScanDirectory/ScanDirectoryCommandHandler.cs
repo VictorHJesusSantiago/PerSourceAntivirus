@@ -25,7 +25,6 @@ public class ScanDirectoryCommandHandler(FileScanService fileScanService, ScanSe
 
         var pathList = filePaths.ToList();
 
-        // Incremental scan: load existing hashes before parallelizing (single DB read).
         var existingHashes = await fileScanService.GetExistingHashesAsync(pathList, cancellationToken);
 
         var parallelOptions = new ParallelOptions
@@ -45,7 +44,6 @@ public class ScanDirectoryCommandHandler(FileScanService fileScanService, ScanSe
             }
         });
 
-        // Persist serially — DbContext is not thread-safe.
         foreach (var file in analyzed)
         {
             await fileScanService.PersistAsync(file, cancellationToken);

@@ -42,7 +42,6 @@ public class FileScanService(
         catch (IOException) { return null; }
         catch (UnauthorizedAccessException) { return null; }
 
-        // Incremental: skip file if hash hasn't changed since last scan.
         if (existingHashes is not null &&
             existingHashes.TryGetValue(filePath, out var knownHash) &&
             knownHash == hashResult.Sha256Hash)
@@ -50,7 +49,6 @@ public class FileScanService(
             return null;
         }
 
-        // Trusted hash: persist as Clean without further analysis.
         if (exclusionList.IsWhitelistedHash(hashResult.Sha256Hash))
         {
             return new ScannedFile
@@ -181,19 +179,16 @@ public class FileScanService(
             };
         }
 
-        // ADS scanning (Windows NTFS only)
         if (adsScanner != null)
         {
             var streams = adsScanner.ScanStreams(filePath);
             if (streams.Count > 0)
             {
-                // If any suspicious ADS found, elevate threat status
                 if (streams.Any(s => s.IsSuspicious) && scannedFile.ThreatStatus == ThreatStatus.Clean)
                     scannedFile.ThreatStatus = ThreatStatus.Suspicious;
             }
         }
 
-        // Archive scanning
         if (archiveScanner?.CanScan(filePath) == true)
         {
             var archiveSummary = await archiveScanner.ScanAsync(filePath, cancellationToken);
@@ -204,7 +199,6 @@ public class FileScanService(
             }
         }
 
-        // PDF scanning
         if (pdfScanner?.CanScan(filePath) == true)
         {
             var pdfData = pdfScanner.Scan(filePath);
@@ -214,7 +208,6 @@ public class FileScanService(
                 scannedFile.ThreatStatus = ThreatStatus.Malicious;
         }
 
-        // Email scanning
         if (emailScanner?.CanScan(filePath) == true)
         {
             var emailData = emailScanner.Scan(filePath);
@@ -222,7 +215,6 @@ public class FileScanService(
                 scannedFile.ThreatStatus = ThreatStatus.Suspicious;
         }
 
-        // Steganography detection
         if (steganographyDetector?.CanAnalyze(filePath) == true)
         {
             var stegoData = steganographyDetector.Analyze(filePath);
@@ -271,16 +263,13 @@ public class FileScanService(
         FileMetadataData? metadataData,
         OfficeMacroData? macroData)
     {
-        // Malicious: reputation confirmed OR YARA rule tagged malicious
         if (reputationData?.IsMalicious == true || yaraMatches.Any(m => m.Tags.Contains("malicious")))
             return ThreatStatus.Malicious;
 
-        // Malicious: macro with auto-exec that also downloads or spawns processes
         if (macroData is { HasMacros: true, HasAutoExec: true } &&
             (macroData.HasNetworkAccess || macroData.HasProcessExecution))
             return ThreatStatus.Malicious;
 
-        // Suspicious: any lower-confidence indicator
         if (yaraMatches.Count > 0 ||
             (peData?.Anomalies.Count ?? 0) > 0 ||
             (scriptData?.SuspiciousPatterns.Count ?? 0) > 0 ||
