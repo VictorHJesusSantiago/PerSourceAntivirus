@@ -8,7 +8,7 @@ public class CertificateTrustAlert
     public required string FilePath { get; set; }
     public required string Thumbprint { get; set; }
     public required string SubjectName { get; set; }
-    public required string Reason { get; set; } // BlacklistedCertificate
+    public required string Reason { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }
 }

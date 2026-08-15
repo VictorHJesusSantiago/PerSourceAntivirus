@@ -7,7 +7,7 @@ public class BrowserExtensionFinding
     public required string ExtensionId { get; set; }
     public required string ExtensionName { get; set; }
     public required string Version { get; set; }
-    public required string Permissions { get; set; } // JSON array as string
+    public required string Permissions { get; set; }
     public bool IsSuspicious { get; set; }
     public required string RiskReason { get; set; }
     public int Severity { get; set; }
