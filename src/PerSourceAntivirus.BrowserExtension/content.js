@@ -1,7 +1,6 @@
-﻿// Content script — injected into every page at document_start
-// Checks the current URL via the background service worker and shows a warning banner if flagged
+﻿
 (function () {
-  if (window.top !== window) return; // main frame only
+  if (window.top !== window) return;
 
   const url = location.href;
   if (!url.startsWith("http")) return;

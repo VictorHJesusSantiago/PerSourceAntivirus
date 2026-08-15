@@ -1,4 +1,4 @@
-﻿// popup.js — runs in the popup context (not the service worker)
+﻿
 
 const agentDot    = document.getElementById("agentDot");
 const agentStatus = document.getElementById("agentStatus");
@@ -16,14 +16,12 @@ function setAgentStatus(connected) {
   }
 }
 
-// Get current tab URL and show it
 chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
   const tab = tabs[0];
   const url = tab?.url ?? "";
   urlBox.textContent = url.length > 60 ? url.slice(0, 57) + "..." : url;
   urlBox.title = url;
 
-  // Check connection status
   chrome.runtime.sendMessage({ type: "get_status" }, res => {
     if (chrome.runtime.lastError) { setAgentStatus(false); return; }
     setAgentStatus(res?.connected ?? false);

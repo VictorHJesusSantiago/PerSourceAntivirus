@@ -1,8 +1,8 @@
-﻿// Native messaging host app ID — registered in Windows registry by the C# host installer
+﻿
 const NATIVE_HOST = "com.persource.antivirus";
 
 let nativePort = null;
-const checkCache = new Map(); // url -> { blocked, reason, ts }
+const checkCache = new Map();
 const CACHE_TTL_MS = 60_000;
 
 function connectNative() {
