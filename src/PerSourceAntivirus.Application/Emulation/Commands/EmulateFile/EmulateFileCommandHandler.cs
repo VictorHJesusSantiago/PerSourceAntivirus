@@ -6,7 +6,7 @@ namespace PerSourceAntivirus.Application.Emulation.Commands.EmulateFile;
 public class EmulateFileCommandHandler(ICpuEmulator cpuEmulator)
     : IRequestHandler<EmulateFileCommand, EmulateFileResult>
 {
-    private const long MaxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
+    private const long MaxFileSizeBytes = 10 * 1024 * 1024;
 
     public async Task<EmulateFileResult> Handle(EmulateFileCommand request, CancellationToken cancellationToken)
     {
