@@ -9,7 +9,5 @@ public interface ICustomIocRepository
     Task RemoveAsync(Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<CustomIoc>> GetByTypeAsync(string type, CancellationToken ct = default);
 
-    // Filters server-side by exact value — avoids loading the whole active-IOC table into
-    // memory just to check whether one IP/domain/hash is present (see IpDomainReputationScoringService).
     Task<IReadOnlyList<CustomIoc>> FindActiveByValueAsync(string value, CancellationToken ct = default);
 }
