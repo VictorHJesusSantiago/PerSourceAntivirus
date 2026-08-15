@@ -514,7 +514,7 @@ switch (args[0])
                     $"{ev.ProcessId,-7} {ev.ProcessName,-25} {suspCol,-10} {ev.Detail}");
             }
         }
-        catch (OperationCanceledException) { /* normal stop */ }
+        catch (OperationCanceledException) {  }
 
         Console.WriteLine("ETW monitoring stopped.");
         break;
@@ -730,10 +730,10 @@ switch (args[0])
                     $"{alert.DetectedAtUtc:yyyy-MM-dd HH:mm:ss,-22} " +
                     $"{alert.Severity,-10} {alert.EventType,-28} {alert.Detail}");
                 Console.ResetColor();
-                try { await rnswRepo.AddAsync(alert); } catch { /* non-fatal persistence error */ }
+                try { await rnswRepo.AddAsync(alert); } catch {  }
             }
         }
-        catch (OperationCanceledException) { /* normal stop */ }
+        catch (OperationCanceledException) {  }
 
         Console.WriteLine("Ransomware monitoring stopped.");
         break;
@@ -787,7 +787,7 @@ switch (args[0])
                 Console.ResetColor();
             }
         }
-        catch (OperationCanceledException) { /* normal stop */ }
+        catch (OperationCanceledException) {  }
         catch (InvalidOperationException ex)
         {
             Console.Error.WriteLine($"Error: {ex.Message}");
