@@ -1,7 +1,5 @@
 namespace PerSourceAntivirus.Application.Common.Interfaces;
 
-// Wraps Windows System Restore (via the built-in PowerShell System Restore cmdlets) so the
-// GUI can create/list/restore checkpoints without the user needing to open the Control Panel.
 public interface ISystemRestoreService
 {
     Task<bool> CreateRestorePointAsync(string description, CancellationToken ct = default);
