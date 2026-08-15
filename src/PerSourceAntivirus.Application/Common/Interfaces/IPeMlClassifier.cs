@@ -8,7 +8,7 @@ public interface IPeMlClassifier
 
 public record PeMlResult(
     float MaliciousProbability,
-    string Classification,    // "Malicious" | "Suspicious" | "Clean"
+    string Classification,
     string ModelVersion,
     float[] Features,
     string[] FeatureNames
