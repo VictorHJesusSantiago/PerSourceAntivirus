@@ -15,8 +15,6 @@ public class CheckRunningProcessesQueryHandler(
         var snapshot = processProvider.GetSnapshot();
         var results  = new List<RunningProcessResult>(snapshot.Count);
 
-        // Cache hash+reputation per unique exe path to avoid hashing the same binary N times
-        // (e.g., dozens of svchost.exe instances sharing one path).
         var cache = new Dictionary<string, (string? Hash, bool IsMalicious, string? Source, string? Url)>(
             StringComparer.OrdinalIgnoreCase);
 
@@ -55,7 +53,6 @@ public class CheckRunningProcessesQueryHandler(
         }
         catch
         {
-            // File locked, access denied, or process exited between snapshot and hash read.
             return (null, false, null, null);
         }
     }

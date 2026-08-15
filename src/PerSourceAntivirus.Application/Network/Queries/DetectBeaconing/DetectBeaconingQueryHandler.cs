@@ -6,7 +6,6 @@ namespace PerSourceAntivirus.Application.Network.Queries.DetectBeaconing;
 public class DetectBeaconingQueryHandler(INetworkConnectionEventRepository repository)
     : IRequestHandler<DetectBeaconingQuery, IReadOnlyList<BeaconingCandidate>>
 {
-    // C2 beacons are highly regular: CV below 10 % flags the pattern.
     private const double BeaconingCvThreshold = 10.0;
 
     public async Task<IReadOnlyList<BeaconingCandidate>> Handle(
@@ -28,7 +27,6 @@ public class DetectBeaconingQueryHandler(INetworkConnectionEventRepository repos
         return candidates;
     }
 
-    // Returns null when there are too few intervals to measure or CV is above threshold.
     private static BeaconingCandidate? Evaluate(
         string src, string dst, int dstPort,
         IList<Domain.Entities.NetworkConnectionEvent> sorted)
