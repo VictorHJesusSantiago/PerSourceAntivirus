@@ -7,7 +7,7 @@ public class ArpSpoofingAlert
     public required string VictimIp { get; set; }
     public required string LegitimateKnownMac { get; set; }
     public required string SpoofedMac { get; set; }
-    public required string DetectionReason { get; set; }  // "GratuitousArp","MacConflict","GatewayMacChanged","MultipleArpReplies"
+    public required string DetectionReason { get; set; }
     public int DuplicateCount { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }

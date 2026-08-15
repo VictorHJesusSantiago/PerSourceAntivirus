@@ -8,5 +8,5 @@ public class AdsStreamInfo
     public required string StreamName { get; set; }
     public long StreamSize { get; set; }
     public bool IsSuspicious { get; set; }
-    public required string Reason { get; set; }  // "HasExecutableContent", "HasPeHeader", "HasScript", "LargeHiddenData", "Clean"
+    public required string Reason { get; set; }
 }
