@@ -8,8 +8,6 @@ namespace PerSourceAntivirus.Infrastructure.Siem;
 
 public class SyslogCefExporter : ISiemExporter
 {
-    // Named client for the HttpJson protocol; BaseAddress/Authorization are applied per request
-    // rather than baked into a long-lived HttpClient, so the factory can rotate handlers.
     public const string HttpClientName = "psav-siem";
 
     public SiemProtocol Protocol { get; }
@@ -110,7 +108,6 @@ public class SyslogCefExporter : ISiemExporter
         var timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
         var hostname = Dns.GetHostName();
         var pid = Environment.ProcessId;
-        // Priority 134 = facility LOCAL0 (16) * 8 + severity INFO (6) = 134
         return $"<134>1 {timestamp} {hostname} PSAV {pid} - - {cefMessage}";
     }
 
@@ -177,7 +174,6 @@ public class SyslogCefExporter : ISiemExporter
         }
         catch (HttpRequestException)
         {
-            // best-effort: ignore send failures
         }
     }
 }

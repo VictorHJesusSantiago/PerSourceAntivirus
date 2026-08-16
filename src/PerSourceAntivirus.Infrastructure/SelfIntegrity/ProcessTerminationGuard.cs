@@ -15,7 +15,6 @@ public sealed class ProcessTerminationGuard : IDisposable
         "ProcessHacker.exe", "ProcessHacker2.exe", "pskill.exe"
     };
 
-    // SetProcessMitigationPolicy policy IDs (winnt.h)
     private const int ProcessDEPPolicy = 0;
     private const int ProcessStrictHandleCheckPolicy = 3;
     private const int ProcessSignaturePolicy = 8;
@@ -24,14 +23,12 @@ public sealed class ProcessTerminationGuard : IDisposable
     [StructLayout(LayoutKind.Sequential)]
     private struct ProcessMitigationStrictHandleCheckPolicy
     {
-        // Flags: RaiseExceptionOnInvalidHandleReference (bit 0) | HandleExceptionsPermanentlyEnabled (bit 1)
         public uint Flags;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct ProcessMitigationBinarySignaturePolicy
     {
-        // MicrosoftSignedOnly (bit 0) | StoreSignedOnly (bit 1) | MitigationOptIn (bit 2) | AuditMicrosoftSignedOnly (bit 3) | AuditStoreSignedOnly (bit 4)
         public uint Flags;
     }
 
@@ -72,18 +69,13 @@ public sealed class ProcessTerminationGuard : IDisposable
         StartSuspiciousProcessWatcher();
     }
 
-    // Applies usermode process mitigations that raise the cost of process injection/hijacking.
-    // These are not PPL — they cannot fully prevent termination by an admin-level attacker —
-    // but they close several low-effort attack vectors.
     private static void ApplyProcessMitigations()
     {
         try
         {
-            // Raise exceptions instead of silently failing when a bad/invalid handle is used.
-            // Prevents attackers from silently duplicating or manipulating handles.
             var strictHandlePolicy = new ProcessMitigationStrictHandleCheckPolicy
             {
-                Flags = 0b11 // RaiseExceptionOnInvalidHandleReference | HandleExceptionsPermanentlyEnabled
+                Flags = 0b11
             };
             SetProcessMitigationPolicy(
                 ProcessStrictHandleCheckPolicy,
@@ -94,12 +86,9 @@ public sealed class ProcessTerminationGuard : IDisposable
 
         try
         {
-            // Require that all images loaded into this process are signed (audit mode only —
-            // MitigationOptIn bit 2 set, enforcement bits 0/1 clear). Logs unsigned DLL loads
-            // without blocking legitimate unsigned code the host process may already depend on.
             var signaturePolicy = new ProcessMitigationBinarySignaturePolicy
             {
-                Flags = 0b00100 // MitigationOptIn only (audit, not enforcement)
+                Flags = 0b00100
             };
             SetProcessMitigationPolicy(
                 ProcessSignaturePolicy,

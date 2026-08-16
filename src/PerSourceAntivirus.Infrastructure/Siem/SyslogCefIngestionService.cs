@@ -62,7 +62,6 @@ public sealed class SyslogCefIngestionService(IServiceScopeFactory scopeFactory)
         catch { }
     }
 
-    // Parses "<PRI>timestamp host CEF:0|Vendor|Product|Version|SignatureId|Name|Severity|ext..."
     internal static RemoteAgentEvent? ParseCefMessage(string raw, string sourceHost)
     {
         var cefIndex = raw.IndexOf("CEF:0|", StringComparison.Ordinal);
