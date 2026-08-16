@@ -3,8 +3,6 @@ using PerSourceAntivirus.Infrastructure.Network;
 
 namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 
-// Downloads the URLhaus text blocklist, extracts hostnames from URLs, and rewrites
-// domain-blocklist.txt, then reloads StaticDomainBlocklist in-process.
 public sealed class UrlhausUpdater : IThreatFeedUpdater
 {
     public string FeedName => "URLhaus";
@@ -39,7 +37,6 @@ public sealed class UrlhausUpdater : IThreatFeedUpdater
         }
     }
 
-    // Extracts unique lowercase hostnames from URL lines.
     internal static List<string> ParseDomains(string text)
     {
         var seen    = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

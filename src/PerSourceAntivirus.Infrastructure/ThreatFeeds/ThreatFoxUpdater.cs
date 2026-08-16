@@ -6,9 +6,6 @@ using PerSourceAntivirus.Domain.Entities;
 
 namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 
-// Abuse.ch ThreatFox — pulls recent IOCs (IP:port, domain, URL, hash) via the public JSON API
-// and both (a) records them as CustomIoc entries for hunting/triage and (b) feeds IP/domain
-// blocklists so they are enforced immediately.
 public sealed class ThreatFoxUpdater : IThreatFeedUpdater
 {
     public string FeedName => "ThreatFox";
