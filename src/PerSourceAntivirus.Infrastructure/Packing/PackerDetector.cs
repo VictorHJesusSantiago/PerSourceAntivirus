@@ -34,7 +34,6 @@ public class PackerDetector : IPackerDetector
             return new PackerDetectionResult("None", false, false, null);
         }
 
-        // Attempt UPX unpacking
         if (packerName == "UPX")
         {
             var (unpacked, tempPath) = await TryUnpackUpxAsync(filePath, ct);
@@ -44,13 +43,9 @@ public class PackerDetector : IPackerDetector
         return new PackerDetectionResult(packerName, true, false, null);
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Packer detection
-    // ────────────────────────────────────────────────────────────
 
     private static string DetectPacker(byte[] header, IReadOnlyList<string> sectionNames)
     {
-        // UPX: "UPX!" magic or UPX0/UPX1 section names
         if (ContainsSignature(header, "UPX!"u8)
             || sectionNames.Any(n => n.Equals("UPX0", StringComparison.OrdinalIgnoreCase)
                                   || n.Equals("UPX1", StringComparison.OrdinalIgnoreCase)))
@@ -58,19 +53,16 @@ public class PackerDetector : IPackerDetector
             return "UPX";
         }
 
-        // MPRESS
         if (ContainsSignature(header, "MPRESS1"u8) || ContainsSignature(header, "MPRESS2"u8))
         {
             return "MPRESS";
         }
 
-        // ASPack: "aSjX" at PE header + 0x28
         if (HasAspAckSignature(header))
         {
             return "ASPack";
         }
 
-        // PECompact: section name ".pec" or ".pec2"
         if (sectionNames.Any(n => n.Equals(".pec", StringComparison.OrdinalIgnoreCase)
                                || n.Equals(".pec2", StringComparison.OrdinalIgnoreCase)))
         {
@@ -84,7 +76,6 @@ public class PackerDetector : IPackerDetector
             return "Themida";
         }
 
-        // VMProtect
         if (sectionNames.Any(n => n.Equals(".vmp0", StringComparison.OrdinalIgnoreCase)
                                || n.Equals(".vmp1", StringComparison.OrdinalIgnoreCase)))
         {
@@ -96,7 +87,6 @@ public class PackerDetector : IPackerDetector
 
     private static bool HasAspAckSignature(byte[] header)
     {
-        // Offset to COFF/PE header is at 0x3C (4-byte LE)
         if (header.Length < 0x40)
         {
             return false;
@@ -110,16 +100,12 @@ public class PackerDetector : IPackerDetector
             return false;
         }
 
-        // "aSjX"
         return header[checkOffset] == (byte)'a'
             && header[checkOffset + 1] == (byte)'S'
             && header[checkOffset + 2] == (byte)'j'
             && header[checkOffset + 3] == (byte)'X';
     }
 
-    // ────────────────────────────────────────────────────────────
-    // PE section name parsing
-    // ────────────────────────────────────────────────────────────
 
     private static IReadOnlyList<string> ReadPeSectionNames(byte[] header)
     {
@@ -127,7 +113,6 @@ public class PackerDetector : IPackerDetector
 
         try
         {
-            // MZ header check
             if (header.Length < 0x40 || header[0] != (byte)'M' || header[1] != (byte)'Z')
             {
                 return names;
@@ -135,7 +120,6 @@ public class PackerDetector : IPackerDetector
 
             int peOffset = BitConverter.ToInt32(header, 0x3C);
 
-            // Validate PE signature "PE\0\0"
             if (peOffset + 4 > header.Length
                 || header[peOffset] != (byte)'P'
                 || header[peOffset + 1] != (byte)'E'
@@ -145,7 +129,6 @@ public class PackerDetector : IPackerDetector
                 return names;
             }
 
-            // COFF header: NumberOfSections at PE+6 (2 bytes)
             if (peOffset + 8 > header.Length)
             {
                 return names;
@@ -153,7 +136,6 @@ public class PackerDetector : IPackerDetector
 
             ushort numberOfSections = BitConverter.ToUInt16(header, peOffset + 6);
 
-            // SizeOfOptionalHeader at PE+20 (2 bytes)
             if (peOffset + 22 > header.Length)
             {
                 return names;
@@ -161,7 +143,6 @@ public class PackerDetector : IPackerDetector
 
             ushort optionalHeaderSize = BitConverter.ToUInt16(header, peOffset + 20);
 
-            // Section table starts at: PE offset + 24 (COFF header size) + optional header size
             int sectionTableOffset = peOffset + 24 + optionalHeaderSize;
 
             for (int i = 0; i < numberOfSections; i++)
@@ -173,7 +154,6 @@ public class PackerDetector : IPackerDetector
                     break;
                 }
 
-                // Section name: 8 bytes, null-padded ASCII
                 string name = ReadNullPaddedAscii(header, sectionOffset, 8);
                 if (!string.IsNullOrEmpty(name))
                 {
@@ -183,7 +163,6 @@ public class PackerDetector : IPackerDetector
         }
         catch
         {
-            // Malformed PE — return whatever we collected
         }
 
         return names;
@@ -204,9 +183,6 @@ public class PackerDetector : IPackerDetector
         return sb.ToString();
     }
 
-    // ────────────────────────────────────────────────────────────
-    // UPX unpacking
-    // ────────────────────────────────────────────────────────────
 
     private static async Task<(bool success, string? tempPath)> TryUnpackUpxAsync(
         string filePath,
@@ -245,7 +221,6 @@ public class PackerDetector : IPackerDetector
                 return (true, tempPath);
             }
 
-            // Clean up failed temp file
             TryDeleteFile(tempPath);
             return (false, null);
         }
@@ -285,9 +260,6 @@ public class PackerDetector : IPackerDetector
         return null;
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Helpers
-    // ────────────────────────────────────────────────────────────
 
     private static async Task<byte[]> ReadHeaderAsync(string filePath, CancellationToken ct)
     {
@@ -355,7 +327,6 @@ public class PackerDetector : IPackerDetector
         }
         catch
         {
-            // Best-effort cleanup
         }
     }
 }

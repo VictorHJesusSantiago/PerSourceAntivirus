@@ -25,14 +25,12 @@ public sealed class PdfPigScanner : IPdfScanner
                                 || rawText.Contains("/EmbeddedFiles", StringComparison.Ordinal);
             var hasObjStm = rawText.Contains("/ObjStm", StringComparison.Ordinal);
 
-            // Use PdfPig to open and validate the document (also catches malformed PDFs)
             try
             {
                 using var doc = PdfDocument.Open(filePath);
-                // Access document information to detect metadata anomalies
                 _ = doc.Information;
             }
-            catch { /* malformed PDF — continue with raw analysis */ }
+            catch {  }
 
             var maliciousTypes = new List<string>();
             if (hasJavaScript) maliciousTypes.Add("JavaScript");
@@ -43,7 +41,6 @@ public sealed class PdfPigScanner : IPdfScanner
             if (hasEmbeddedFiles) maliciousTypes.Add("EmbeddedFiles");
             if (hasObjStm) maliciousTypes.Add("ObjStm");
 
-            // Risk scoring: JS=3, OpenAction=2, Launch=4, RichMedia=1, XFA=2, EmbeddedFiles=1, ObjStm=1
             int riskScore = 0;
             if (hasJavaScript) riskScore += 3;
             if (hasOpenAction) riskScore += 2;
