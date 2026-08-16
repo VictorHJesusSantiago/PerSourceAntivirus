@@ -7,10 +7,10 @@ public class ModuleStompingAlert
     public int ProcessId { get; set; }
     public required string ModulePath { get; set; }
     public required string ModuleName { get; set; }
-    public required string OnDiskHash { get; set; }   // SHA256 of on-disk .text section bytes
-    public required string InMemoryHash { get; set; } // SHA256 of in-memory .text section bytes
+    public required string OnDiskHash { get; set; }
+    public required string InMemoryHash { get; set; }
     public long TextSectionSize { get; set; }
-    public required string SuspicionReason { get; set; } // "TextSectionHashMismatch"
+    public required string SuspicionReason { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }
 }
