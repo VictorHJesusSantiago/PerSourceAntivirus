@@ -13,7 +13,6 @@ namespace PerSourceAntivirus.Infrastructure.Network;
 [SupportedOSPlatform("windows")]
 public sealed class SmbLateralMovementDetector(IServiceScopeFactory scopeFactory) : ISmbLateralMovementDetector
 {
-    // key = srcIp:srcPort -> dstIp:dstPort, tracks SMB stream state
     private readonly ConcurrentDictionary<string, SmbStreamState> _streams =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTime> _recentAlerts =
@@ -25,8 +24,7 @@ public sealed class SmbLateralMovementDetector(IServiceScopeFactory scopeFactory
     private const string BpfFilter = "tcp port 445";
     private const double DedupMinutes = 5.0;
 
-    // SMB2 constants
-    private static readonly byte[] Smb2Magic = [0xFE, 0x53, 0x4D, 0x42]; // \xFE SMB
+    private static readonly byte[] Smb2Magic = [0xFE, 0x53, 0x4D, 0x42];
     private const int Smb2CommandOffset = 12;
     private const ushort Smb2CommandTreeConnect = 3;
     private const ushort Smb2CommandCreate = 5;
@@ -81,11 +79,9 @@ public sealed class SmbLateralMovementDetector(IServiceScopeFactory scopeFactory
             var payload = tcp.PayloadData;
             if (payload is null || payload.Length < 8) return;
 
-            // TCP payload may contain a 4-byte NetBIOS session header before SMB2
             var smb2Offset = FindSmb2Header(payload);
             if (smb2Offset < 0 || smb2Offset + 16 > payload.Length) return;
 
-            // Verify magic
             if (!MatchesMagic(payload, smb2Offset)) return;
 
             var command = (ushort)(payload[smb2Offset + Smb2CommandOffset] | (payload[smb2Offset + Smb2CommandOffset + 1] << 8));
@@ -116,7 +112,6 @@ public sealed class SmbLateralMovementDetector(IServiceScopeFactory scopeFactory
                 }
             }
 
-            // PsExec detection: IPC$ tree connect + svcctl pipe creation
             if (state.HasIpcTreeConnect && state.HasSvcctlPipe)
             {
                 FireAlert(srcIp, dstIp, "PsExecPattern",
@@ -125,7 +120,6 @@ public sealed class SmbLateralMovementDetector(IServiceScopeFactory scopeFactory
                 return;
             }
 
-            // Lateral movement via ADMIN$ file copy
             if (state.HasIpcTreeConnect && state.HasAdminTreeConnect)
             {
                 FireAlert(srcIp, dstIp, "AdminShareLateralMovement",
@@ -138,7 +132,6 @@ public sealed class SmbLateralMovementDetector(IServiceScopeFactory scopeFactory
 
     private static int FindSmb2Header(byte[] payload)
     {
-        // Skip 4-byte NetBIOS session header if present
         if (payload.Length > 4 && payload[0] == 0x00)
             return 4;
         return 0;
@@ -157,8 +150,6 @@ public sealed class SmbLateralMovementDetector(IServiceScopeFactory scopeFactory
     {
         try
         {
-            // SMB2 TreeConnect request: StructureSize(2) + Reserved(2) + PathOffset(2) + PathLength(2) = 8 bytes after header
-            // Header is 64 bytes for SMB2
             var structStart = smb2Offset + 64;
             if (structStart + 8 > payload.Length) return string.Empty;
 
@@ -178,9 +169,6 @@ public sealed class SmbLateralMovementDetector(IServiceScopeFactory scopeFactory
     {
         try
         {
-            // SMB2 Create request header is 64 bytes, then StructureSize(2) + SecurityFlags(1) + RequestedOplockLevel(1) +
-            // ImpersonationLevel(4) + SmbCreateFlags(8) + Reserved(8) + DesiredAccess(4) + FileAttributes(4) +
-            // ShareAccess(4) + CreateDisposition(4) + CreateOptions(4) + NameOffset(2) + NameLength(2) = total 56 bytes
             var structStart = smb2Offset + 64;
             if (structStart + 56 > payload.Length) return string.Empty;
 
@@ -219,7 +207,6 @@ public sealed class SmbLateralMovementDetector(IServiceScopeFactory scopeFactory
         AlertDetected?.Invoke(this, new SmbLateralMovementAlertEventArgs(alert));
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
     private async Task PersistAsync(SmbLateralMovementAlert alert)
     {
         try

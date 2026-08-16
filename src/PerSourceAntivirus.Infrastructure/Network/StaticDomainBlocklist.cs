@@ -23,7 +23,6 @@ public class StaticDomainBlocklist : IDomainBlocklist
             return true;
         }
 
-        // Check parent domain suffixes (e.g., sub.evil.com matches .evil.com)
         var parts = domain.Split('.');
         for (var i = 1; i < parts.Length - 1; i++)
         {
