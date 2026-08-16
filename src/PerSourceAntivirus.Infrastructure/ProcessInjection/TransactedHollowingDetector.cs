@@ -20,7 +20,6 @@ public sealed class TransactedHollowingDetector : ITransactedHollowingDetector
     private const int PROCESS_QUERY_INFORMATION = 0x0400;
     private const uint MEM_COMMIT = 0x1000;
     private const uint MEM_IMAGE = 0x1000000;
-    // Executable page protection mask
     private const uint PAGE_EXECUTE_MASK = 0xF0;
 
     private static readonly string TempPath =
@@ -68,10 +67,6 @@ public sealed class TransactedHollowingDetector : ITransactedHollowingDetector
         _scopeFactory = scopeFactory;
     }
 
-    // [AUDIT FIX — CRITICAL] This detector is a singleton but used to take a *scoped*
-    // ITransactedHollowingAlertRepository directly (captive dependency): one AppDbContext captured for the
-    // process lifetime and written to from background scan threads, where it is not thread-safe.
-    // Scope-per-write is the pattern CLAUDE.md mandates for exactly this reason.
     private async Task PersistAsync(TransactedHollowingAlert alert, CancellationToken ct)
     {
         try
@@ -133,7 +128,6 @@ public sealed class TransactedHollowingDetector : ITransactedHollowingDetector
 
         try
         {
-            // Phase 1: Check module list for missing files or suspicious paths
             var moduleHandles = new IntPtr[1024];
             if (EnumProcessModules(handle, moduleHandles, (uint)(moduleHandles.Length * IntPtr.Size), out uint needed))
             {
@@ -152,13 +146,11 @@ public sealed class TransactedHollowingDetector : ITransactedHollowingDetector
                     string modulePath = sb.ToString();
                     if (string.IsNullOrEmpty(modulePath)) continue;
 
-                    // Check 1: module file not on disk
                     if (!System.IO.File.Exists(modulePath))
                     {
                         await FireAlertIfNewAsync(pid, procName, modulePath, false,
                             "ModuleFileNotOnDisk", 9, ct);
                     }
-                    // Check 2: module loaded from temp/localappdata
                     else if (IsInTempDirectory(modulePath))
                     {
                         await FireAlertIfNewAsync(pid, procName, modulePath, true,
@@ -190,7 +182,6 @@ public sealed class TransactedHollowingDetector : ITransactedHollowingDetector
 
                         if (hasExecuteProtect)
                         {
-                            // ImageMappedPrivate: image section mapped with no file — hallmark of transacted hollowing
                             await FireAlertIfNewAsync(pid, procName,
                                 $"<unmapped:0x{mbi.BaseAddress.ToInt64():X}>",
                                 false, "ImageMappedPrivate", 9, ct);

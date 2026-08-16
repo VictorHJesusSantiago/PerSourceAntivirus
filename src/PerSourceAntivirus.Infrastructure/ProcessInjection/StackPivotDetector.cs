@@ -74,10 +74,6 @@ public sealed class StackPivotDetector : IStackPivotDetector
         _scopeFactory = scopeFactory;
     }
 
-    // [AUDIT FIX — CRITICAL] This detector is a singleton but used to take a *scoped*
-    // IStackPivotAlertRepository directly (captive dependency): one AppDbContext captured for the
-    // process lifetime and written to from background scan threads, where it is not thread-safe.
-    // Scope-per-write is the pattern CLAUDE.md mandates for exactly this reason.
     private async Task PersistAsync(StackPivotAlert alert, CancellationToken ct)
     {
         try
@@ -139,7 +135,6 @@ public sealed class StackPivotDetector : IStackPivotDetector
 
         try
         {
-            // Collect stack ranges from all threads via TEB
             var threadStackRanges = new List<(ulong stackLimit, ulong stackBase)>();
 
             System.Diagnostics.ProcessThreadCollection threads;
@@ -164,9 +159,7 @@ public sealed class StackPivotDetector : IStackPivotDetector
 
                     if (status == 0 && tbi.TebBaseAddress != IntPtr.Zero)
                     {
-                        // Read StackLimit at TEB+0x08
                         var stackLimitBytes = new byte[8];
-                        // Read StackBase at TEB+0x10
                         var stackBaseBytes = new byte[8];
 
                         bool gotLimit = ReadProcessMemory(processHandle,
