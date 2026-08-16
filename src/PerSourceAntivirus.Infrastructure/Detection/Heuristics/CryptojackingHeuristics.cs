@@ -1,10 +1,7 @@
 namespace PerSourceAntivirus.Infrastructure.Detection.Heuristics;
 
-// Pure decision logic for cryptojacking detection, split out of CryptojackingDetector so the
-// correlation rules can be tested without live processes or a TCP table.
 public static class CryptojackingHeuristics
 {
-    // Stratum and common XMR/ETH pool ports.
     public static readonly IReadOnlySet<int> MiningPoolPorts = new HashSet<int>
     {
         3333, 3334, 3335, 3336, 4444, 5555, 5556, 7777, 8080, 8888,
@@ -15,8 +12,6 @@ public static class CryptojackingHeuristics
 
     public static bool IsMiningPoolPort(int port) => MiningPoolPorts.Contains(port);
 
-    // CPU% between two samples, normalised across all cores and clamped to 0-100.
-    // Returns 0 when the window is non-positive, so a first observation cannot alert.
     public static double CalculateCpuPercent(
         TimeSpan previousCpuTime, TimeSpan currentCpuTime,
         DateTime previousSampleAt, DateTime currentSampleAt,
@@ -29,8 +24,6 @@ public static class CryptojackingHeuristics
         return Math.Max(0, Math.Min(100, elapsedCpuMs / elapsedWallMs * 100));
     }
 
-    // High CPU on its own is deliberately NOT an alert: compilers, games and video encoders all
-    // pin the CPU. Only a connection to a known pool port makes it a mining signal.
     public static CryptojackingVerdict? Evaluate(bool hasMiningPoolConnection, double cpuPercent)
     {
         if (!hasMiningPoolConnection) return null;

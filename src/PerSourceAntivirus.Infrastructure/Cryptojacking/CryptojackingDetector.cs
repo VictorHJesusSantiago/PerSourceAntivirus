@@ -9,8 +9,6 @@ using SysProcess = System.Diagnostics.Process;
 
 namespace PerSourceAntivirus.Infrastructure.Cryptojacking;
 
-// Correlates sustained high CPU usage with outbound TCP connections to well-known
-// cryptocurrency mining pool ports (Stratum protocol and common XMR/ETH pool ports).
 [SupportedOSPlatform("windows")]
 public sealed class CryptojackingDetector : ICryptojackingDetector
 {
@@ -66,7 +64,6 @@ public sealed class CryptojackingDetector : ICryptojackingDetector
         catch (Exception) { return; }
 
         var now = DateTime.UtcNow;
-        // Resolved once per sweep, not per process — see DetectorScanScope.ResolveDiagnostics.
         var diagnostics = Diagnostics.DetectorScanScope.ResolveDiagnostics(_scopeFactory);
 
         foreach (var proc in processes)
@@ -101,8 +98,6 @@ public sealed class CryptojackingDetector : ICryptojackingDetector
 
         if (pid <= 4) return;
 
-        // CPU sampling and the correlation rule live in CryptojackingHeuristics so they can be
-        // unit tested without a live process table.
         double cpuPercent = 0;
         if (_lastCpuTime.TryGetValue(pid, out var prevCpu) && _lastSampleAt.TryGetValue(pid, out var prevAt))
         {
@@ -156,7 +151,7 @@ internal static class TcpTableReader
     {
         public uint state;
         public uint localAddr;
-        public uint localPort; // network byte order in the low bytes
+        public uint localPort;
         public uint remoteAddr;
         public uint remotePort;
         public uint owningPid;
