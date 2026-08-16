@@ -18,7 +18,6 @@ public class ShellcodeDetector : IShellcodeDetector
         var patterns = new List<string>();
         float score = 0f;
 
-        // 1. Null byte frequency
         var nullCount = 0;
         for (var i = 0; i < data.Length; i++)
             if (data[i] == 0x00) nullCount++;
@@ -26,7 +25,6 @@ public class ShellcodeDetector : IShellcodeDetector
         if (nullRatio < 0.005f)
             patterns.Add("LowNullByteFrequency");
 
-        // 2. Common shellcode byte patterns
         if (ContainsPattern(data, PatternMsfvenom))
         {
             score += 0.15f;
@@ -59,7 +57,6 @@ public class ShellcodeDetector : IShellcodeDetector
             patterns.Add("JmpShortPopPattern");
         }
 
-        // 3. High entropy
         var entropy = CalculateShannonEntropy(data);
         if (entropy > 6.5f)
         {
@@ -67,14 +64,12 @@ public class ShellcodeDetector : IShellcodeDetector
             patterns.Add($"HighEntropy({entropy:F2})");
         }
 
-        // 4. ROP chain detection - density of C3 (RET) in 512-byte windows
         if (data.Length >= 512 && HasHighRetDensity(data))
         {
             score += 0.15f;
             patterns.Add("HighRetDensity");
         }
 
-        // 5. Known safe indicators
         if (ContainsAsciiString(data, ".NET CLR") || ContainsAsciiString(data, "MSVCRT"))
         {
             score -= 0.30f;
@@ -124,7 +119,6 @@ public class ShellcodeDetector : IShellcodeDetector
 
     private static bool HasPushArgPattern(byte[] data)
     {
-        // 6A XX 68 XX XX XX XX (PUSH byte; PUSH dword)
         for (var i = 0; i <= data.Length - 7; i++)
         {
             if (data[i] == 0x6A && data[i + 2] == 0x68)
@@ -135,7 +129,6 @@ public class ShellcodeDetector : IShellcodeDetector
 
     private static bool HasJmpShortPopPattern(byte[] data)
     {
-        // EB XX 59 (JMP short + POP ECX) or EB XX 5? 49
         for (var i = 0; i <= data.Length - 4; i++)
         {
             if (data[i] == 0xEB && data[i + 2] == 0x59)
@@ -183,7 +176,6 @@ public class ShellcodeDetector : IShellcodeDetector
 
     private static bool ContainsPeHeader(byte[] data)
     {
-        // Look for MZ header (4D 5A) followed by PE signature (50 45 00 00) somewhere in the buffer
         for (var i = 0; i <= data.Length - 2; i++)
         {
             if (data[i] == 0x4D && data[i + 1] == 0x5A)

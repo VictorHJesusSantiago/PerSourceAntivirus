@@ -21,7 +21,6 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
 
     public bool TryTerminateSuspiciousProcess { get; set; } = false;
 
-    // Known legitimate keyboard filter drivers
     private static readonly HashSet<string> KnownLegitimateDrivers = new(StringComparer.OrdinalIgnoreCase)
     {
         "kbdclass", "kbdhid", "i8042prt", "hidusb", "mouhid", "mouclass",
@@ -45,7 +44,6 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
         _scopeFactory = scopeFactory;
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from ETW/monitor threads.
     private async Task PersistAsync(KeyloggerDetectionAlert alert)
     {
         try
@@ -57,16 +55,13 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
         catch { }
     }
 
-    // ETW provider: Microsoft-Windows-Win32k detects cross-process SetWindowsHookEx calls
     private const string Win32kProviderGuid = "8c416c79-d49b-4f01-a467-e56d3aa8234c";
-    // WH_KEYBOARD=2, WH_KEYBOARD_LL=13
     private static readonly HashSet<int> KeyboardHookTypes = [2, 13];
 
     public async Task StartMonitoringAsync(CancellationToken ct)
     {
         _running = true;
 
-        // Start ETW Win32k hook monitor on a background thread (requires admin)
         var etwTask = Task.Run(() => RunWin32kEtwMonitor(ct), ct);
 
         try
@@ -106,11 +101,8 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
             {
                 try
                 {
-                    // Look for SetWindowsHookEx-related events; hook type is carried in payload fields
-                    // The Win32k provider uses event name "SetWindowsHookEx" or similar
                     if (!e.EventName.Contains("Hook", StringComparison.OrdinalIgnoreCase)) return;
 
-                    // Try to read hook type from payload
                     int hookType = -1;
                     try { hookType = (int)e.PayloadValue(0); } catch { }
 
@@ -124,7 +116,6 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
                         callerName = proc.ProcessName;
                         string path;
                         try { path = proc.MainModule?.FileName ?? ""; } catch { path = ""; }
-                        // Skip system processes
                         if (path.Contains(@"\Windows\", StringComparison.OrdinalIgnoreCase) ||
                             path.Contains(@"\Program Files\", StringComparison.OrdinalIgnoreCase))
                             return;
@@ -142,7 +133,6 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
         }
         catch
         {
-            // Non-admin or provider not available — silently skip ETW path
         }
         finally
         {
@@ -194,10 +184,6 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
 
     private void ScanRawInputRegistrations()
     {
-        // Enumerate all running processes and check which ones have RawInput keyboard sinks
-        // This is done indirectly: check processes with GetRegisteredRawInputDevices
-        // We can only call this for the current process; for others we'd need a hook
-        // Instead scan for suspicious window hooks via ETW or check running processes
         try
         {
             var processes = SysProcess.GetProcesses();
@@ -206,12 +192,10 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
                 try
                 {
                     var procName = proc.ProcessName;
-                    // Flag processes outside system paths that have keyboard hook patterns in name/path
                     string mainModulePath;
                     try { mainModulePath = proc.MainModule?.FileName ?? ""; }
                     catch { mainModulePath = ""; }
 
-                    // Check if process loaded keyboard-related modules
                     if (IsSuspiciousKeyloggerProcess(proc, mainModulePath))
                     {
                         FireAlert(procName, proc.Id, "RawInputSink",
@@ -228,11 +212,8 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
 
     private static bool IsSuspiciousKeyloggerProcess(SysProcess proc, string modulePath)
     {
-        // Heuristic: process has very low privilege, is not in system dir,
-        // and has modules with keyboard-related names
         if (string.IsNullOrEmpty(modulePath)) return false;
 
-        // Skip system processes
         if (modulePath.Contains(@"\Windows\System32\", StringComparison.OrdinalIgnoreCase) ||
             modulePath.Contains(@"\Windows\SysWOW64\", StringComparison.OrdinalIgnoreCase) ||
             modulePath.Contains(@"\Program Files\", StringComparison.OrdinalIgnoreCase))
@@ -254,13 +235,8 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
 
     private async Task ScanProcessHooksAsync(CancellationToken ct)
     {
-        // Check Windows hook registrations via WMI (SetWindowsHookEx creates entries detectable via ETW)
-        // Also check if any non-system DLLs are loaded in multiple processes (common hook pattern)
-        // This is a lightweight heuristic scan
-        await Task.Delay(100, ct); // yield
+        await Task.Delay(100, ct);
 
-        // Check if any running process has a non-system DLL in multiple other processes
-        // This is a simplified check — full detection requires ETW subscription
         try
         {
             var processes = SysProcess.GetProcesses();
@@ -285,7 +261,6 @@ public sealed class KeyloggerDetector : IKeyloggerDetector
                 finally { proc.Dispose(); }
             }
 
-            // A non-system DLL loaded in many processes is typical of a global hook
             foreach (var kv in moduleCounts.Where(m => m.Value >= 5))
             {
                 FireAlert("Unknown", 0, "WH_KEYBOARD_LL_Hook",

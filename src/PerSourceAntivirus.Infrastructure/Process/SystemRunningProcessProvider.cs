@@ -13,8 +13,6 @@ public class SystemRunningProcessProvider : IRunningProcessProvider
             string? exePath;
             try
             {
-                // MainModule access requires SeDebugPrivilege for some system processes;
-                // catch any exception and continue rather than skipping the entire snapshot.
                 exePath = process.MainModule?.FileName;
             }
             catch
