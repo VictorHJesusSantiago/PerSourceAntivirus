@@ -8,6 +8,6 @@ public class LolBinAlert
     public required string LolbinName { get; set; }
     public required string Description { get; set; }
     public required string MitreTechnique { get; set; }
-    public int Severity { get; set; }  // 1-10
+    public int Severity { get; set; }
     public DateTime AlertedAtUtc { get; set; }
 }
