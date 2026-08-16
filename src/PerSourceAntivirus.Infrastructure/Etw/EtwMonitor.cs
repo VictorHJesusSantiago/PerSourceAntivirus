@@ -8,14 +8,10 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Etw;
 
-// Real-time ETW monitor using the kernel provider.
-// Detects: DLL injection (load from suspicious path), Run-key persistence, process creation.
-// Requires Windows administrator privileges.
 public sealed class EtwMonitor : IEtwMonitor
 {
     private const string SessionName = "PerSourceAntivirusEtw";
 
-    // Paths that indicate a possibly injected DLL (temp dirs, appdata).
     private static readonly string[] SuspiciousDllPaths =
     [
         Path.GetTempPath(),
@@ -26,7 +22,6 @@ public sealed class EtwMonitor : IEtwMonitor
         @"\tmp\",
     ];
 
-    // NT-format Registry Run key prefixes for both HKLM and HKCU.
     private static readonly string[] RunKeyPrefixes =
     [
         @"\REGISTRY\MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
@@ -44,12 +39,11 @@ public sealed class EtwMonitor : IEtwMonitor
         {
             try
             {
-                // TraceEventSession requires admin; will throw UnauthorizedAccessException otherwise.
                 using var session = new TraceEventSession(SessionName);
 
                 cancellationToken.Register(() =>
                 {
-                    try { session.Stop(); } catch { /* ignore on shutdown */ }
+                    try { session.Stop(); } catch {  }
                 });
 
                 session.EnableKernelProvider(
@@ -75,12 +69,10 @@ public sealed class EtwMonitor : IEtwMonitor
                     channel.Writer.TryWrite(ev);
                 };
 
-                // Blocks until session is stopped.
                 session.Source.Process();
             }
             catch (Exception ex)
             {
-                // Emit an error event and complete so the consumer can exit gracefully.
                 channel.Writer.TryWrite(new EtwEventData(
                     DateTime.UtcNow, EtwEventType.Other, 0, "EtwMonitor",
                     $"Session error: {ex.Message}", false, null));
@@ -89,7 +81,7 @@ public sealed class EtwMonitor : IEtwMonitor
             {
                 channel.Writer.TryComplete();
             }
-        }, CancellationToken.None); // Use None so the task body runs even after cancel
+        }, CancellationToken.None);
 
         await foreach (var ev in channel.Reader.ReadAllAsync(cancellationToken))
             yield return ev;
@@ -147,7 +139,6 @@ public sealed class EtwMonitor : IEtwMonitor
         {
             if (keyName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
-                // For HKCU (\REGISTRY\USER\<SID>\...) check if it ends in a Run/RunOnce path.
                 if (prefix.EndsWith(@"\REGISTRY\USER\", StringComparison.OrdinalIgnoreCase))
                 {
                     return keyName.Contains(@"\CurrentVersion\Run", StringComparison.OrdinalIgnoreCase);

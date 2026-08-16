@@ -9,7 +9,6 @@ public class FileQuarantineService(string quarantineDirectory) : IQuarantineServ
     {
         Directory.CreateDirectory(quarantineDirectory);
 
-        // Append .quarantine to prevent accidental execution of moved files.
         var quarantineFileName = $"{file.Id}_{Path.GetFileName(file.FilePath)}.quarantine";
         var quarantinePath = Path.Combine(quarantineDirectory, quarantineFileName);
 

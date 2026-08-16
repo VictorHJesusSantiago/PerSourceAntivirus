@@ -40,33 +40,28 @@ public sealed class AdsScanner : IAdsScanner
                 do
                 {
                     var name = streamData.cStreamName;
-                    // Skip the main data stream "::$DATA"
                     if (name.Equals("::$DATA", StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     var isSuspicious = false;
                     var reason = "Clean";
 
-                    // Large ADS (>= 4 KB) is suspicious
                     if (streamData.StreamSize >= 4096)
                     {
                         isSuspicious = true;
                         reason = "LargeHiddenData";
                     }
 
-                    // Try to read the stream content for further analysis
                     try
                     {
                         var streamPath = $"{filePath}{name}";
                         var bytes = System.IO.File.ReadAllBytes(streamPath);
 
-                        // Check for PE header (MZ)
                         if (bytes.Length >= 2 && bytes[0] == 0x4D && bytes[1] == 0x5A)
                         {
                             isSuspicious = true;
                             reason = "HasPeHeader";
                         }
-                        // Check for script content
                         else if (bytes.Length > 10)
                         {
                             var text = System.Text.Encoding.UTF8.GetString(bytes, 0, Math.Min(bytes.Length, 256));
