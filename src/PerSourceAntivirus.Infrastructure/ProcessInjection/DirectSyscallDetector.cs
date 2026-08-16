@@ -55,7 +55,6 @@ public sealed class DirectSyscallDetector : IDirectSyscallDetector
     private const uint PAGE_EXECUTE_READWRITE = 0x40;
     private const uint PAGE_EXECUTE_WRITECOPY = 0x80;
 
-    // syscall: 0F 05, sysenter: 0F 34
     private static readonly byte[] PatternSyscall = [0x0F, 0x05];
     private static readonly byte[] PatternSysenter = [0x0F, 0x34];
 
@@ -66,10 +65,6 @@ public sealed class DirectSyscallDetector : IDirectSyscallDetector
         _scopeFactory = scopeFactory;
     }
 
-    // [AUDIT FIX — CRITICAL] This detector is a singleton but used to take a *scoped*
-    // IDirectSyscallAlertRepository directly (captive dependency): one AppDbContext captured for the
-    // process lifetime and written to from background scan threads, where it is not thread-safe.
-    // Scope-per-write is the pattern CLAUDE.md mandates for exactly this reason.
     private async Task PersistAsync(DirectSyscallAlert alert, CancellationToken ct)
     {
         try
@@ -182,7 +177,6 @@ public sealed class DirectSyscallDetector : IDirectSyscallDetector
             ulong instrAddr = (ulong)regionBase.ToInt64() + (ulong)i;
             var (modulePath, isSystem) = FindContainingModule((long)instrAddr, modules);
 
-            // Skip if in ntdll or win32u (expected locations for syscalls)
             if (isSystem && (modulePath.Contains("ntdll", StringComparison.OrdinalIgnoreCase) ||
                              modulePath.Contains("win32u", StringComparison.OrdinalIgnoreCase)))
                 continue;
@@ -255,7 +249,6 @@ public sealed class DirectSyscallDetector : IDirectSyscallDetector
                 if (GetModuleFileNameEx(handle, mods[i], sb, (uint)sb.Capacity) == 0) continue;
                 var path = sb.ToString();
 
-                // Use VirtualQueryEx to determine size
                 if (VirtualQueryEx(handle, mods[i], out var mbi, (uint)Marshal.SizeOf<MEMORY_BASIC_INFORMATION>()))
                 {
                     long size = Math.Max((long)mbi.RegionSize, 4 * 1024 * 1024);

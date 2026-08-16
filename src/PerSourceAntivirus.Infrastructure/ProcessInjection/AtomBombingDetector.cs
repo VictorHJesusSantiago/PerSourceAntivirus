@@ -6,7 +6,6 @@ using PerSourceAntivirus.Domain.Entities;
 
 namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 
-// TODO: Register in DependencyInjection.cs as: services.AddSingleton<IAtomBombingDetector, AtomBombingDetector>();
 [SupportedOSPlatform("windows")]
 public sealed class AtomBombingDetector : IAtomBombingDetector
 {
@@ -24,9 +23,6 @@ public sealed class AtomBombingDetector : IAtomBombingDetector
         _scopeFactory = scopeFactory;
     }
 
-    // [AUDIT FIX — HIGH] This detector raised AlertDetected and nothing else: the event has no
-    // subscribers anywhere in the codebase and IAtomBombingAlertRepository, though registered in
-    // DI, was never resolved. Every atom-bombing detection was therefore discarded outright.
     private async Task PersistAsync(AtomBombingAlert alert, CancellationToken ct)
     {
         try

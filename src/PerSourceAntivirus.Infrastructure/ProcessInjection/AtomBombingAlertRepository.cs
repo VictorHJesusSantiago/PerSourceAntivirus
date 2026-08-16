@@ -5,7 +5,6 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure.ProcessInjection;
 
-// TODO: Register in DependencyInjection.cs as: services.AddScoped<IAtomBombingAlertRepository, AtomBombingAlertRepository>();
 public sealed class AtomBombingAlertRepository(AppDbContext db) : IAtomBombingAlertRepository
 {
     public async Task AddAsync(AtomBombingAlert alert, CancellationToken ct = default)
