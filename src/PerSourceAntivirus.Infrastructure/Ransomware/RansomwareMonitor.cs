@@ -70,7 +70,7 @@ public class RansomwareMonitor : IRansomwareMonitor
             };
             vssWatcher.Start();
         }
-        catch { /* WMI unavailable or admin required — non-fatal */ }
+        catch {  }
 
         ct.Register(() =>
         {
@@ -171,7 +171,7 @@ public class RansomwareMonitor : IRansomwareMonitor
                     }
                 }
             }
-            catch { /* file locked or deleted — skip */ }
+            catch {  }
         }
     }
 

@@ -32,7 +32,7 @@ public class HoneypotManager : IHoneypotManager
                 var path = Path.Combine(dir, $"_psav_decoy_{filename}");
                 await File.WriteAllTextAsync(path, content, ct);
                 try { File.SetAttributes(path, FileAttributes.Hidden | FileAttributes.System); }
-                catch { /* non-fatal if attributes can't be set */ }
+                catch {  }
                 created.Add(path);
             }
         }

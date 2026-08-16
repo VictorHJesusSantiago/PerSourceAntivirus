@@ -13,9 +13,6 @@ public sealed class VssRollbackService : IVssRollbackService
 
     public event EventHandler<VssSnapshotEventArgs>? SnapshotCreated;
 
-    // [AUDIT FIX — CRITICAL] Registered as a Singleton but used to capture the *scoped*
-    // IVssSnapshotRepository, pinning one AppDbContext for the process lifetime. Detected by
-    // DependencyInjectionGraphTests.NoSingleton_DependsOnAScopedService.
     public VssRollbackService(IServiceScopeFactory scopeFactory)
     {
         _scopeFactory = scopeFactory;
