@@ -53,18 +53,12 @@ using PerSourceAntivirus.Infrastructure.Composition;
 
 namespace PerSourceAntivirus.Infrastructure;
 
-// YARA, blocklists, process monitoring, quarantine and hash reputation.
-// Extracted from the former ~580-line AddInfrastructureServices (ADR-002). Registration
-// order within and across modules is preserved exactly as it was.
 internal static class ScanningEngineServices
 {
     public static IServiceCollection AddScanningEngineServices(this IServiceCollection services, IConfiguration configuration, InfrastructureBuildContext ctx)
     {
-        // YARA — the scanner instance and its rules directory come from the shared build context
-        // so the auto-updater below reloads the very same instance the engine scans with.
         services.AddSingleton<IYaraScanner>(ctx.YaraScanner);
 
-        // YARA rules auto-update URLs
         var updateUrls = configuration.GetSection("Yara:UpdateUrls")
             .GetChildren()
             .Select(c => c.Value ?? string.Empty)
@@ -72,7 +66,6 @@ internal static class ScanningEngineServices
             .ToList();
         services.AddSingleton<IYaraRulesUpdater>(_ => new HttpYaraRulesUpdater(ctx.YaraScanner, ctx.YaraRulesDirectory, updateUrls));
 
-        // IP blocklist
         services.AddSingleton<IBlocklistProvider>(ctx.BlocklistProvider);
 
         var updateUrl = configuration["Network:BlocklistUpdateUrl"]
@@ -80,18 +73,14 @@ internal static class ScanningEngineServices
         services.AddSingleton<IBlocklistUpdater>(
             _ => new HttpBlocklistUpdater(ctx.BlocklistProvider, ctx.IpBlocklistFile, updateUrl));
 
-        // Domain blocklist for DNS monitoring
         services.AddSingleton<IDomainBlocklist>(ctx.DomainBlocklist);
         services.AddSingleton<IDnsMonitor, SharpPcapDnsMonitor>();
 
-        // Process monitor (Windows WMI) + snapshot provider for check-running
         services.AddSingleton<IProcessMonitor, WmiProcessMonitor>();
         services.AddSingleton<IRunningProcessProvider, SystemRunningProcessProvider>();
 
-        // Quarantine
         services.AddSingleton<IQuarantineService>(_ => new FileQuarantineService(ctx.QuarantineDirectory));
 
-        // Hash reputation
         var vtApiKey = configuration["Reputation:VirusTotalApiKey"] ?? string.Empty;
         var vtReputation = new VirusTotalHashReputationService(vtApiKey);
         services.AddSingleton<IHashReputationService>(_ => new CompositeHashReputationService(ctx.LocalReputation, vtReputation));

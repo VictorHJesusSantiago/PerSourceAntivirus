@@ -53,40 +53,31 @@ using PerSourceAntivirus.Infrastructure.Composition;
 
 namespace PerSourceAntivirus.Infrastructure;
 
-// Phase 19-20 signing/certificate trust, custom signatures, network filtering and OS integration.
-// Extracted from the former ~580-line AddInfrastructureServices (ADR-002). Registration
-// order within and across modules is preserved exactly as it was.
 internal static class SigningAndFilteringServices
 {
     public static IServiceCollection AddSigningAndFilteringServices(this IServiceCollection services, IConfiguration configuration, InfrastructureBuildContext ctx)
     {
-        // Phase 19 — DLL search-order hijacking
         services.AddSingleton<IDllHijackDetector, DllHijackDetector>();
         services.AddScoped<IDllHijackAlertRepository, DllHijackAlertRepository>();
 
-        // Phase 19 — Cryptojacking (CPU + mining-pool port correlation)
         services.AddSingleton<ICryptojackingDetector, CryptojackingDetector>();
         services.AddScoped<ICryptojackingAlertRepository, CryptojackingAlertRepository>();
 
-        // Phase 19 — Authenticode verification + unsigned/untrusted binary detection
         services.AddSingleton<IAuthenticodeVerifier, AuthenticodeVerifier>();
         services.AddSingleton<IUnsignedBinaryDetector, UnsignedBinaryDetector>();
         services.AddScoped<IUnsignedBinaryAlertRepository, UnsignedBinaryAlertRepository>();
 
-        // Phase 19 — Custom signature engine (hash + wildcard), complementary to YARA
         var customSignaturesFile = configuration["Signatures:CustomSignaturesFile"] ?? "data/custom-signatures.txt";
         if (!Path.IsPathRooted(customSignaturesFile))
             customSignaturesFile = Path.Combine(AppContext.BaseDirectory, customSignaturesFile);
         services.AddSingleton<ICustomSignatureEngine>(_ => new CustomSignatureEngine(customSignaturesFile));
         services.AddScoped<ICustomSignatureMatchRepository, CustomSignatureMatchRepository>();
 
-        // Phase 19 — Certificate trust list (whitelist/blacklist by Authenticode thumbprint)
         services.AddScoped<ICertificateTrustEntryRepository, CertificateTrustEntryRepository>();
         services.AddSingleton<ICertificateTrustListService, CertificateTrustListService>();
         services.AddSingleton<ICertificateTrustDetector, CertificateTrustDetector>();
         services.AddScoped<ICertificateTrustAlertRepository, CertificateTrustAlertRepository>();
 
-        // Phase 20 — Network: hosts-file DNS filtering, per-process firewall, DNS tunneling, GeoIP
         var domainBlocklistFileForHosts = configuration["Network:DomainBlocklistFile"] ?? "data/domain-blocklist.txt";
         if (!Path.IsPathRooted(domainBlocklistFileForHosts))
             domainBlocklistFileForHosts = Path.Combine(AppContext.BaseDirectory, domainBlocklistFileForHosts);
@@ -107,13 +98,11 @@ internal static class SigningAndFilteringServices
         services.AddSingleton<IGeoIpEnforcementDetector, GeoIpEnforcementDetector>();
         services.AddScoped<IGeoIpBlockAlertRepository, GeoIpBlockAlertRepository>();
 
-        // Phase 20 — GUI/UX backend: gamer mode + scheduled reports
         services.AddSingleton<IFullScreenDetector, PerSourceAntivirus.Infrastructure.SystemIntegration.FullScreenDetector>();
         var reportsDir = Path.Combine(AppContext.BaseDirectory, "data", "reports");
         services.AddHostedService(sp => new PerSourceAntivirus.Infrastructure.Reporting.ThreatReportSchedulerService(
             sp.GetRequiredService<IServiceScopeFactory>(), reportsDir));
 
-        // Phase 20 — OS integration: Explorer context menu, Secure Boot, USB device control
         services.AddSingleton<IExplorerContextMenuInstaller, PerSourceAntivirus.Infrastructure.SystemIntegration.ExplorerContextMenuInstaller>();
         services.AddSingleton<ISecureBootVerifier, PerSourceAntivirus.Infrastructure.Uefi.SecureBootVerifier>();
         services.AddScoped<ISecureBootSnapshotRepository, PerSourceAntivirus.Infrastructure.Uefi.SecureBootSnapshotRepository>();
@@ -125,7 +114,6 @@ internal static class SigningAndFilteringServices
             sp.GetRequiredService<IServiceScopeFactory>(), usbAllowlistFile));
         services.AddScoped<IUsbDeviceEventRepository, PerSourceAntivirus.Infrastructure.SystemIntegration.UsbDeviceEventRepository>();
 
-        // Phase 20 — ML: incremental active-learning classifier
         var activeLearningWeightsFile = Path.Combine(AppContext.BaseDirectory, "data", "models", "active-learning-weights.json");
         services.AddSingleton<IActiveLearningService>(sp => new PerSourceAntivirus.Infrastructure.Pe.ActiveLearningService(
             sp.GetRequiredService<IServiceScopeFactory>(), activeLearningWeightsFile));

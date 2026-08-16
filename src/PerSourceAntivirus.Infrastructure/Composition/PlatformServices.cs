@@ -53,14 +53,10 @@ using PerSourceAntivirus.Infrastructure.Composition;
 
 namespace PerSourceAntivirus.Infrastructure;
 
-// Threat feeds, MBR/ETW/sandbox, ransomware, kernel, ML, WFP, SIEM, TLS, COM.
-// Extracted from the former ~580-line AddInfrastructureServices (ADR-002). Registration
-// order within and across modules is preserved exactly as it was.
 internal static class PlatformServices
 {
     public static IServiceCollection AddPlatformServices(this IServiceCollection services, IConfiguration configuration, InfrastructureBuildContext ctx)
     {
-        // Threat intelligence feed updaters (Group 3)
         services.AddSingleton<IThreatFeedUpdater>(sp => new FeodoTrackerUpdater(
             ctx.BlocklistProvider, ctx.IpBlocklistFile, sp.GetRequiredService<IHttpClientFactory>()));
         services.AddSingleton<IThreatFeedUpdater>(sp => new MalwareBazaarUpdater(
@@ -68,71 +64,53 @@ internal static class PlatformServices
         services.AddSingleton<IThreatFeedUpdater>(sp => new UrlhausUpdater(
             ctx.DomainBlocklist, ctx.DomainBlocklistFile, sp.GetRequiredService<IHttpClientFactory>()));
 
-        // MBR protection (Group 4)
         services.AddSingleton<IMbrProtectionService, MbrProtectionService>();
         services.AddScoped<IMbrSnapshotRepository, MbrSnapshotRepository>();
 
-        // ETW monitor (Group 4) â€” Windows-only, requires admin
         services.AddSingleton<IEtwMonitor, EtwMonitor>();
 
-        // Sandbox runner (Group 4) â€” Job Object based, Windows-only
         services.AddSingleton<ISandboxRunner, JobObjectSandboxRunner>();
 
-        // Process memory scanner â€” YARA scan over live process address space
         services.AddSingleton<IProcessMemoryScanner, ProcessMemoryScanner>();
 
-        // Ransomware detection â€” honeypot + mass encryption + VSS watch
         services.AddSingleton<IHoneypotManager, HoneypotManager>();
         services.AddSingleton<IRansomwareMonitor, RansomwareMonitor>();
         services.AddScoped<IHoneypotRepository, HoneypotRepository>();
         services.AddScoped<IRansomwareAlertRepository, RansomwareAlertRepository>();
 
-        // Minifilter communicator â€” connects to kernel driver port \PSAVScanPort
         services.AddSingleton<IMinifilterMonitor, MinifilterCommunicator>();
 
-        // Kernel event monitor â€” connects to \PSAVEventPort for process/image callbacks
         services.AddSingleton<IKernelEventMonitor, KernelEventCommunicator>();
 
-        // ML PE classifier â€” tries to load ONNX model, falls back to heuristic
         services.AddSingleton<IPeMlClassifier>(new PerSourceAntivirus.Infrastructure.Pe.OnnxPeMlClassifier(ctx.ModelsDirectory));
         services.AddScoped<IPeMlPredictionRepository, PeMlPredictionRepository>();
 
-        // WFP network blocker â€” blocks IPs at Windows Filtering Platform level
         services.AddSingleton<IWfpBlocker, PerSourceAntivirus.Infrastructure.Network.WfpBlocker>();
         services.AddScoped<IWfpBlockRepository, WfpBlockRepository>();
 
-        // Scheduled scan background service
         services.AddHostedService<ScanSchedulerService>();
 
-        // Rootkit scanner + repository (Group 7)
         services.AddSingleton<IRootkitScanner, RootkitScanner>();
         services.AddScoped<IRootkitFindingRepository, RootkitFindingRepository>();
 
-        // Shellcode / exploit memory detector (Group 13)
         services.AddSingleton<IShellcodeDetector, ShellcodeDetector>();
         services.AddScoped<IExploitFindingRepository, ExploitFindingRepository>();
 
-        // UEFI firmware scanner + repository (Group 14)
         services.AddSingleton<IUefiScanner, UefiScanner>();
         services.AddScoped<IUefiFindingRepository, UefiFindingRepository>();
 
-        // Auto-updater (Group 8)
         services.AddSingleton<IAutoUpdater>(sp => new SignatureAutoUpdater(
             sp.GetRequiredService<IEnumerable<IThreatFeedUpdater>>(),
             sp.GetRequiredService<IYaraRulesUpdater>(),
             sp.GetRequiredService<IBlocklistUpdater>()));
 
-        // WMI persistence scanner + repository (Group 10)
         services.AddSingleton<IWmiPersistenceScanner, WmiPersistenceScanner>();
         services.AddScoped<IWmiPersistenceAlertRepository, WmiPersistenceAlertRepository>();
 
-        // Self-integrity service (Group 11)
         services.AddSingleton<ISelfIntegrityService, SelfIntegrityService>();
 
-        // Enhanced sandbox with ETW behavioral analysis (Group 16)
         services.AddSingleton<IEnhancedSandboxRunner, EtwEnhancedSandboxRunner>();
 
-        // SIEM / telemetry exporter (Group 15)
         var siemProtocol = configuration["Siem:Protocol"] is string p && Enum.TryParse<SiemProtocol>(p, out var proto) ? proto : SiemProtocol.Disabled;
         var siemHost = configuration["Siem:Host"] ?? "127.0.0.1";
         var siemPort = int.TryParse(configuration["Siem:Port"], out var sp2) ? sp2 : -1;
@@ -140,11 +118,9 @@ internal static class PlatformServices
         services.AddSingleton<ISiemExporter>(sp => new SyslogCefExporter(
             siemProtocol, siemHost, siemPort, siemApiKey, sp.GetRequiredService<IHttpClientFactory>()));
 
-        // TLS inspection proxy + repository (Group 9)
         services.AddSingleton<ITlsInspector, LocalTlsProxy>();
         services.AddScoped<ITlsInspectionEventRepository, TlsInspectionEventRepository>();
 
-        // COM hijack / DLL sideloading monitor + repository (Group 17)
         services.AddSingleton<IComHijackMonitor, ComHijackMonitor>();
         services.AddScoped<IComHijackAlertRepository, ComHijackAlertRepository>();
 
