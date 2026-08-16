@@ -7,8 +7,6 @@ using SysProcess = System.Diagnostics.Process;
 
 namespace PerSourceAntivirus.Infrastructure.DllHijack;
 
-// Detects DLL search-order hijacking / planted DLLs: a module whose file name matches a
-// well-known Windows system DLL but is loaded from outside System32/SysWOW64 into a process.
 [SupportedOSPlatform("windows")]
 public sealed class DllHijackDetector : IDllHijackDetector
 {
@@ -64,7 +62,6 @@ public sealed class DllHijackDetector : IDllHijackDetector
         try { processes = SysProcess.GetProcesses(); }
         catch (Exception) { return; }
 
-        // Resolved once per sweep, not per process — see DetectorScanScope.ResolveDiagnostics.
         var diagnostics = Diagnostics.DetectorScanScope.ResolveDiagnostics(_scopeFactory);
 
         foreach (var proc in processes)
@@ -137,8 +134,6 @@ public sealed class DllHijackDetector : IDllHijackDetector
         }
     }
 
-    // Trusted-directory comparison lives in ModuleLocationHeuristics so it is unit testable;
-    // only the OS-specific directory discovery stays here.
     private static readonly string[] TrustedDirectories = [System32Dir, SysWow64Dir, WinSxsDir];
 
     private static bool IsSystemDirectory(string dir)

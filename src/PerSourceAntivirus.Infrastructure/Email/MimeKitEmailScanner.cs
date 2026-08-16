@@ -12,7 +12,6 @@ public sealed class MimeKitEmailScanner : IEmailScanner
         ".scr", ".com", ".pif", ".iso", ".img", ".lnk", ".jar", ".msi"
     };
 
-    // Regex to find HTTP links to bare IP addresses
     private static readonly Regex IpLinkRegex = new(
         @"https?://\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -38,7 +37,6 @@ public sealed class MimeKitEmailScanner : IEmailScanner
                 return null;
             }
 
-            // Enumerate attachments
             var suspiciousAttachmentNames = new List<string>();
             int attachmentCount = 0;
             int suspiciousAttachmentCount = 0;
@@ -58,12 +56,10 @@ public sealed class MimeKitEmailScanner : IEmailScanner
                 }
             }
 
-            // Extract body text for phishing analysis
             var bodyText = message.TextBody ?? message.HtmlBody ?? string.Empty;
             var phishingIndicators = new List<string>();
             int phishingLinkCount = 0;
 
-            // Check for phishing patterns
             var lowerBody = bodyText.ToLowerInvariant();
 
             if (lowerBody.Contains("verify your account") && lowerBody.Contains("http"))
@@ -85,7 +81,6 @@ public sealed class MimeKitEmailScanner : IEmailScanner
                 phishingLinkCount++;
             }
 
-            // Subject phishing keywords
             var subject = message.Subject?.ToLowerInvariant() ?? string.Empty;
             if (subject.Contains("urgent") || subject.Contains("immediately") ||
                 subject.Contains("suspended") || subject.Contains("verify"))
@@ -93,7 +88,6 @@ public sealed class MimeKitEmailScanner : IEmailScanner
                 phishingIndicators.Add("SuspiciousSubject");
             }
 
-            // Spoofed sender: From domain differs from Reply-To domain
             bool hasSpoofedSender = false;
             var fromDomain = ExtractDomain(message.From?.Mailboxes.FirstOrDefault()?.Address);
             var replyToDomain = ExtractDomain(message.ReplyTo?.Mailboxes.FirstOrDefault()?.Address);
@@ -105,7 +99,6 @@ public sealed class MimeKitEmailScanner : IEmailScanner
                 phishingIndicators.Add("SpoofedSender");
             }
 
-            // Risk score: suspicious attachment × 3 + phishing link × 2 + spoofed sender × 2
             int riskScore = suspiciousAttachmentCount * 3
                           + phishingLinkCount * 2
                           + (hasSpoofedSender ? 2 : 0);

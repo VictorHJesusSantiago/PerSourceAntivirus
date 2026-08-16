@@ -6,7 +6,6 @@ namespace PerSourceAntivirus.Infrastructure.Emulation;
 
 public class X86CpuEmulator : ICpuEmulator
 {
-    // Well-known API hook addresses
     private static readonly Dictionary<ulong, string> ApiHookTable = new()
     {
         [0xDEAD_0001] = "VirtualAlloc",
@@ -49,9 +48,7 @@ public class X86CpuEmulator : ICpuEmulator
 
         int instructionCount = 0;
         int xorLoopCount = 0;
-        // Track addresses that have been written to
         var writtenAddresses = new HashSet<ulong>();
-        // Track addresses that have been executed (for self-modifying code detection)
         var executedAddresses = new HashSet<ulong>();
 
         var codeReader = new ByteArrayCodeReader(code);
@@ -65,11 +62,10 @@ public class X86CpuEmulator : ICpuEmulator
         {
             ulong currentIp = decoder.IP;
 
-            // Self-modifying code detection: execute from previously written address
             if (writtenAddresses.Contains(currentIp))
             {
                 detectedPatterns.Add("SelfModifyingCode");
-                writtenAddresses.Remove(currentIp); // only report once
+                writtenAddresses.Remove(currentIp);
             }
 
             executedAddresses.Add(currentIp);
@@ -106,14 +102,11 @@ public class X86CpuEmulator : ICpuEmulator
                 case Mnemonic.Call:
                     if (HandleCall(instr, registers, interceptedApis))
                     {
-                        // API was intercepted — do not follow the call, just continue
                     }
-                    // For non-intercepted calls, we skip (no call stack simulation)
                     break;
 
                 case Mnemonic.Ret:
                 case Mnemonic.Retf:
-                    // Stop emulation on return (simple heuristic)
                     stop = true;
                     break;
 
@@ -129,18 +122,15 @@ public class X86CpuEmulator : ICpuEmulator
                     break;
 
                 default:
-                    // Unknown or privileged instructions — skip
                     break;
             }
         }
 
-        // Detect encrypted loops: XOR operations with counter (xorLoopCount > 3)
         if (xorLoopCount > 3)
         {
             detectedPatterns.Add("EncryptedLoop");
         }
 
-        // Collect all intercepted APIs into patterns
         foreach (var api in interceptedApis.Distinct())
         {
             detectedPatterns.Add($"ApiCall:{api}");
@@ -159,7 +149,6 @@ public class X86CpuEmulator : ICpuEmulator
 
     private static bool DetectIs64Bit(byte[] code)
     {
-        // Check first 10 bytes for REX prefix (0x48-0x4F range)
         int limit = Math.Min(10, code.Length);
         for (int i = 0; i < limit; i++)
         {
@@ -171,9 +160,6 @@ public class X86CpuEmulator : ICpuEmulator
         return false;
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Instruction handlers
-    // ────────────────────────────────────────────────────────────
 
     private static void HandleMov(
         in Instruction instr,
@@ -219,7 +205,6 @@ public class X86CpuEmulator : ICpuEmulator
             registers[instr.Op0Register] = result;
         }
 
-        // Heuristic: XOR of non-zero values with register that looks like a counter
         if (rhs != 0 && lhs != rhs)
         {
             xorLoopCount++;
@@ -269,7 +254,6 @@ public class X86CpuEmulator : ICpuEmulator
         rsp -= 8;
         registers[Register.RSP] = rsp;
 
-        // Write 8 bytes to stack
         for (int i = 0; i < 8; i++)
         {
             memory[rsp + (ulong)i] = (byte)((value >> (i * 8)) & 0xFF);
@@ -356,7 +340,6 @@ public class X86CpuEmulator : ICpuEmulator
             return true;
         }
 
-        // Jump outside code range — stop emulation
         return false;
     }
 
@@ -376,9 +359,6 @@ public class X86CpuEmulator : ICpuEmulator
         }
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Helpers
-    // ────────────────────────────────────────────────────────────
 
     private static ulong ReadOperandValue(
         in Instruction instr,
