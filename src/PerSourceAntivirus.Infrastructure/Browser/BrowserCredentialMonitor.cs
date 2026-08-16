@@ -20,7 +20,6 @@ public sealed class BrowserCredentialMonitor : IBrowserCredentialMonitor, IDispo
 
     public event EventHandler<BrowserCredentialAccessAlertEventArgs>? AlertDetected;
 
-    // [AUDIT FIX — CRITICAL] Singleton capturing a scoped repository (captive dependency).
     public BrowserCredentialMonitor(IServiceScopeFactory scopeFactory)
     {
         _scopeFactory = scopeFactory;

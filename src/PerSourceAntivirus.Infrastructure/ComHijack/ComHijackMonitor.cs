@@ -93,11 +93,9 @@ public sealed class ComHijackMonitor : IComHijackMonitor, IDisposable
 
             while (!ct.IsCancellationRequested)
             {
-                // Wait for registry change notification
                 var waitResult = await WaitForRegistryChangeAsync(clsidKey, ct);
                 if (!waitResult || ct.IsCancellationRequested) break;
 
-                // Re-scan and yield new alerts
                 var alerts = new List<ComHijackAlert>();
                 ScanComHijackRegistry(alerts, ct);
 
@@ -127,11 +125,9 @@ public sealed class ComHijackMonitor : IComHijackMonitor, IDisposable
             {
                 ct.ThrowIfCancellationRequested();
 
-                // Check if same CLSID exists in HKLM (override scenario)
                 var hklmEntry = hklmClsid?.OpenSubKey(clsidName, writable: false);
                 if (hklmEntry == null) continue;
 
-                // HKCU entry overrides HKLM — potential COM hijack
                 using var hkcuEntry = hkcrHkcu.OpenSubKey(clsidName, writable: false);
                 if (hkcuEntry == null) continue;
 
@@ -161,7 +157,6 @@ public sealed class ComHijackMonitor : IComHijackMonitor, IDisposable
         }
         catch
         {
-            // Registry access may fail on non-Windows or without permissions
         }
     }
 
@@ -241,7 +236,6 @@ public sealed class ComHijackMonitor : IComHijackMonitor, IDisposable
             }
             catch
             {
-                // skip inaccessible processes
             }
             finally
             {
@@ -295,12 +289,11 @@ public sealed class ComHijackMonitor : IComHijackMonitor, IDisposable
 
                 if (result != 0) return false;
 
-                // Wait for the event or cancellation
                 var idx = System.Threading.WaitHandle.WaitAny(
                     [eventHandle.WaitHandle, ct.WaitHandle],
                     TimeSpan.FromSeconds(30));
 
-                return idx == 0; // 0 = registry change, 1 = cancellation
+                return idx == 0;
             }
             catch
             {
