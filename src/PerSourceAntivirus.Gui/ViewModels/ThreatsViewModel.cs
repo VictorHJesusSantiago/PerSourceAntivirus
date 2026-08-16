@@ -50,7 +50,7 @@ public class ThreatsViewModel : ViewModelBase
             Threats.Clear();
             foreach (var t in filtered) Threats.Add(t);
         }
-        catch { /* non-fatal */ }
+        catch {  }
     }
 }
 

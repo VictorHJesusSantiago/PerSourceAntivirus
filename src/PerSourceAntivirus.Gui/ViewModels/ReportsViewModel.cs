@@ -74,14 +74,12 @@ public class ReportsViewModel : ViewModelBase
             DailyTrend = daily;
             TopTypes   = top;
 
-            // Build bar chart items (max bar width = 380 px)
             var maxCount = top.Count > 0 ? top.Max(t => t.Count) : 1;
             if (maxCount == 0) maxCount = 1;
             ChartItems = top
                 .Select(t => new ThreatTypeChartItem(t.AlertType, t.Count, t.Count * 380.0 / maxCount))
                 .ToList();
 
-            // Build trend polyline points (canvas 560 × 100)
             const double canvasW = 560, canvasH = 100;
             var maxAlerts = daily.Count > 0 ? daily.Max(d => d.AlertCount) : 1;
             if (maxAlerts == 0) maxAlerts = 1;
@@ -95,7 +93,6 @@ public class ReportsViewModel : ViewModelBase
             pts.Freeze();
             TrendLinePoints = pts;
 
-            // Build critical line
             var critPts = new PointCollection();
             for (int i = 0; i < daily.Count; i++)
             {
