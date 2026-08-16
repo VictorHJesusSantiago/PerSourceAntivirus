@@ -4,20 +4,8 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Diagnostics;
 
-// Encapsulates the "measure a scan iteration, report success or failure, never let the exception
-// escape" pattern (ADR-001) so it isn't hand-rolled ~90 times across the detectors.
-//
-// Usage inside a detector's polling loop:
-//     await DetectorScanScope.RunAsync(_diagnostics, nameof(MyDetector), () => ScanOnceAsync(ct));
-//
-// The detector keeps running when a scan iteration throws — same behaviour as the bare `catch {}`
-// it replaces — but the failure is now counted and logged instead of vanishing.
 public static class DetectorScanScope
 {
-    // Overload for the many detectors that already hold an IServiceScopeFactory (for the
-    // scope-per-write persistence pattern) but take no IDetectorDiagnostics in their constructor.
-    // It lets those detectors adopt diagnostics without a constructor/DI change. Scan loops tick
-    // every 15-60 s, so resolving a singleton through a scope per iteration is not a hot path.
     public static async Task RunAsync(
         IServiceScopeFactory scopeFactory,
         string detectorName,
@@ -31,13 +19,10 @@ public static class DetectorScanScope
         }
         catch (ObjectDisposedException)
         {
-            // Container torn down during shutdown — fall through to the no-diagnostics path.
         }
 
         if (diagnostics is null)
         {
-            // Diagnostics unavailable (not registered, or shutting down): preserve the original
-            // "never let a scan failure kill the monitor" behaviour rather than crashing.
             try { await scan().ConfigureAwait(false); }
             catch (OperationCanceledException) { throw; }
             catch (Exception) { }
@@ -61,7 +46,6 @@ public static class DetectorScanScope
         }
         catch (OperationCanceledException)
         {
-            // Shutdown, not a failure — must propagate so the caller's loop exits.
             throw;
         }
         catch (Exception ex)
@@ -71,8 +55,6 @@ public static class DetectorScanScope
         }
     }
 
-    // Resolve once per scan and reuse across the inner loop. Creating a scope per process would
-    // mean thousands of scope allocations every sweep, so this is deliberately hoisted out.
     public static IDetectorDiagnostics? ResolveDiagnostics(IServiceScopeFactory scopeFactory)
     {
         try
@@ -86,9 +68,6 @@ public static class DetectorScanScope
         }
     }
 
-    // Per-item wrapper for the inner "foreach process" loops. Counts the outcome without logging
-    // (see IDetectorDiagnostics) and never rethrows, preserving the existing behaviour where one
-    // inaccessible process does not abort the sweep over the remaining ones.
     public static async Task RunItemAsync(
         IDetectorDiagnostics? diagnostics,
         string detectorName,

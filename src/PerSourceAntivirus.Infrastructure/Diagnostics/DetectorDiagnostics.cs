@@ -4,9 +4,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Diagnostics;
 
-// In-memory, lock-free health registry (ADR-001). Deliberately not persisted: this answers
-// "is the detector alive *right now*", which is a liveness question, not an audit-trail one —
-// persisting it would add a DB write to every scan iteration of every detector.
 public sealed class DetectorDiagnostics(ILogger<DetectorDiagnostics> logger) : IDetectorDiagnostics
 {
     private sealed class Counters
@@ -39,8 +36,6 @@ public sealed class DetectorDiagnostics(ILogger<DetectorDiagnostics> logger) : I
         Interlocked.Exchange(ref c.LastFailureTicks, DateTime.UtcNow.Ticks);
         c.LastFailureReason = reason;
 
-        // Debug level: these fire constantly and benignly (protected processes refuse OpenProcess).
-        // The signal that matters is the ScansFailed counter and the health snapshot, not the volume.
         logger.LogDebug(exception, "Detector {Detector} scan failed: {Reason}", detectorName, reason);
     }
 
@@ -50,7 +45,6 @@ public sealed class DetectorDiagnostics(ILogger<DetectorDiagnostics> logger) : I
         Interlocked.Increment(ref c.AlertsRaised);
     }
 
-    // Counter-only by design — see IDetectorDiagnostics for why these are never logged.
     public void RecordItemInspected(string detectorName)
         => Interlocked.Increment(ref _counters.GetOrAdd(detectorName, _ => new Counters()).ItemsInspected);
 

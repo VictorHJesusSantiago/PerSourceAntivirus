@@ -5,10 +5,8 @@ namespace PerSourceAntivirus.Infrastructure.Dga;
 
 public sealed class DgaDetector : IDgaDetector
 {
-    // NXDomain tracking: hostname → streak count
     private readonly ConcurrentDictionary<string, int> _nxdomainStreaks = new(StringComparer.OrdinalIgnoreCase);
 
-    // Known-good domains to skip
     private static readonly HashSet<string> TrustedDomains = new(StringComparer.OrdinalIgnoreCase)
     {
         "google.com", "microsoft.com", "windows.com", "windowsupdate.com", "apple.com", "amazon.com",
@@ -17,14 +15,11 @@ public sealed class DgaDetector : IDgaDetector
 
     public DgaAnalysisResult Analyze(string hostname)
     {
-        // Skip trusted domains
         if (TrustedDomains.Contains(hostname))
             return new DgaAnalysisResult(0, 0, 0, 0.0, false);
 
-        // Extract the 2nd-level domain label
         var label = ExtractSldLabel(hostname);
 
-        // Skip very short or very long labels (not typical DGA pattern range)
         if (label.Length < 6 || label.Length > 20)
             return new DgaAnalysisResult(0, 0, 0, 0.0, false);
 
@@ -34,26 +29,20 @@ public sealed class DgaDetector : IDgaDetector
 
         var probability = 0.0;
 
-        // Entropy scoring
         if (entropy > 3.5) probability += 0.35;
         if (entropy > 4.0) probability += 0.15;
 
-        // CV ratio scoring
         if (cvRatio > 4.0) probability += 0.20;
         if (cvRatio > 6.0) probability += 0.10;
 
-        // NXDOMAIN streak scoring
         if (nxStreak >= 3) probability += 0.15;
         if (nxStreak >= 10) probability += 0.10;
 
-        // Label length scoring
         if (label.Length > 15) probability += 0.10;
 
-        // All consonants + digits (no vowels at all)
         if (!label.Any(c => "aeiou".Contains(char.ToLowerInvariant(c))))
             probability += 0.15;
 
-        // Cap at 1.0
         probability = Math.Min(1.0, probability);
 
         var isDga = probability >= 0.60;
@@ -65,12 +54,11 @@ public sealed class DgaDetector : IDgaDetector
 
     private static string ExtractSldLabel(string hostname)
     {
-        // Remove trailing dot if present
         hostname = hostname.TrimEnd('.');
 
         var parts = hostname.Split('.');
         if (parts.Length >= 2)
-            return parts[^2]; // second-level domain label
+            return parts[^2];
 
         return parts[0];
     }
@@ -106,7 +94,7 @@ public sealed class DgaDetector : IDgaDetector
         foreach (var c in label.ToLowerInvariant())
         {
             if (!char.IsLetter(c))
-                continue; // skip digits and other chars
+                continue;
 
             if ("aeiou".Contains(c))
                 vowels++;
