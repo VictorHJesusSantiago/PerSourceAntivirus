@@ -3,12 +3,8 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Gui.Services;
 
-// "Gamer mode": high-severity alerts (>= 8) always break through; everything else is
-// suppressed while a fullscreen app (game, presentation, video) has focus.
 public sealed class ToastNotificationService(IFullScreenDetector fullScreenDetector) : IToastNotificationService
 {
-    // Note: each balloon creates and disposes its own short-lived NotifyIcon in ShowBalloon;
-    // a long-lived _notifyIcon field was declared here but never assigned or read (dead state).
     private const int CriticalSeverityOverride = 8;
 
     public void ShowThreatDetected(string title, string message, string filePath)

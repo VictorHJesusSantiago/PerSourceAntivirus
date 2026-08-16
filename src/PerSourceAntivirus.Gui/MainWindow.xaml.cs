@@ -13,7 +13,6 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
-        // Minimize to tray instead of closing
         e.Cancel = true;
         Hide();
     }
