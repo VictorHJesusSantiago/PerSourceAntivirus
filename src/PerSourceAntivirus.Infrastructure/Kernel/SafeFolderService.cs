@@ -40,7 +40,6 @@ public sealed class SafeFolderService : ISafeFolderService
 
     public event EventHandler<SafeFolderViolationAlertEventArgs>? ViolationDetected;
 
-    // Per-write scope: AppDbContext is not thread-safe; violations are raised from minifilter callback threads.
     private async Task PersistAsync(SafeFolderViolationAlert alert)
     {
         try
@@ -56,7 +55,6 @@ public sealed class SafeFolderService : ISafeFolderService
     {
         _scopeFactory = scopeFactory;
 
-        // Default protected folders
         var docs    = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
         var pics    = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
@@ -66,7 +64,6 @@ public sealed class SafeFolderService : ISafeFolderService
             if (!string.IsNullOrEmpty(folder))
                 _protectedFolders.Add(folder);
 
-        // Default whitelist: AV itself
         _whitelistedProcesses.Add("PerSourceAntivirus.Cli");
         _whitelistedProcesses.Add("PerSourceAntivirus.Gui");
     }
@@ -103,10 +100,8 @@ public sealed class SafeFolderService : ISafeFolderService
     public async Task StartMonitoringAsync(CancellationToken ct)
     {
         _running = true;
-        // Try to connect to the kernel driver port and sync config
         await TrySyncWithDriverAsync(ct);
 
-        // Monitor via filesystem watcher as userspace fallback
         var watchers = new List<FileSystemWatcher>();
         try
         {
@@ -147,8 +142,6 @@ public sealed class SafeFolderService : ISafeFolderService
 
     private void OnFsEvent(string path, string operation)
     {
-        // Check if triggered by a non-whitelisted process
-        // (userspace can't reliably get the calling process for FS events — just record it)
         var alert = new SafeFolderViolationAlert
         {
             Id = Guid.NewGuid(),
@@ -156,7 +149,7 @@ public sealed class SafeFolderService : ISafeFolderService
             ProcessId   = 0,
             ProtectedPath = path,
             AttemptedOperation = operation,
-            WasBlocked  = false, // userspace watcher is detect-only; kernel driver does actual blocking
+            WasBlocked  = false,
             Severity    = 6,
             DetectedAtUtc = DateTime.UtcNow
         };
@@ -167,7 +160,6 @@ public sealed class SafeFolderService : ISafeFolderService
 
     private async Task TrySyncWithDriverAsync(CancellationToken ct)
     {
-        // Attempt to connect to \PSAVSafeFolderPort and send folder/process config
         try
         {
             var hr = FilterConnectCommunicationPort(SafeFolderPortName, 0,
@@ -184,10 +176,10 @@ public sealed class SafeFolderService : ISafeFolderService
                 }
 
                 foreach (var folder in folders)
-                    await SendDriverCommandAsync(port, 1, folder, ct); // Cmd 1 = AddFolder
+                    await SendDriverCommandAsync(port, 1, folder, ct);
 
                 foreach (var proc in processes)
-                    await SendDriverCommandAsync(port, 3, proc, ct);   // Cmd 3 = AddProcess
+                    await SendDriverCommandAsync(port, 3, proc, ct);
             }
             finally
             {
@@ -199,8 +191,6 @@ public sealed class SafeFolderService : ISafeFolderService
 
     private static unsafe Task SendDriverCommandAsync(IntPtr port, uint command, string path, CancellationToken ct)
     {
-        // Kernel's PSAV_SF_PAYLOAD: ULONG Command (4) + WCHAR Path[260] (520) = 524 bytes total.
-        // FilterSendMessage passes the raw buffer directly to the kernel's MessageNotify — no header.
         const int MsgSize = 4 + 520;
         var buf = new byte[MsgSize];
         BitConverter.TryWriteBytes(buf.AsSpan(0, 4), command);

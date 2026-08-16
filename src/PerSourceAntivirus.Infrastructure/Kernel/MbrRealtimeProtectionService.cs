@@ -47,8 +47,6 @@ public sealed class MbrRealtimeProtectionService : IMbrRealtimeProtection
 
     public bool IsActive => _active;
 
-    // [AUDIT FIX — CRITICAL] Singleton capturing two scoped repositories (captive dependency).
-    // IMbrSnapshotRepository was also assigned and never read, so it was dropped entirely.
     public MbrRealtimeProtectionService(IServiceScopeFactory scopeFactory)
     {
         _scopeFactory = scopeFactory;
