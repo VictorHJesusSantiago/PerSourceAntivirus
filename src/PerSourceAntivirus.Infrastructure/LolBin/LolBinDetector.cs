@@ -48,7 +48,6 @@ public sealed class LolBinDetector : ILolBinDetector
             ["/create", "/sc", "/tr", "cmd.exe", "powershell.exe", "wscript.exe", "mshta.exe"]),
     ];
 
-    // High-risk binaries that get severity 8 when a pattern matches
     private static readonly HashSet<string> HighRiskBinaries = new(StringComparer.OrdinalIgnoreCase)
     {
         "powershell.exe", "certutil.exe", "mshta.exe"
@@ -62,7 +61,6 @@ public sealed class LolBinDetector : ILolBinDetector
         if (entry is null)
             return null;
 
-        // Check if any suspicious argument pattern appears in the arguments
         var matchedPattern = entry.SuspiciousArgPatterns.FirstOrDefault(pattern =>
             arguments.Contains(pattern, StringComparison.OrdinalIgnoreCase));
 
@@ -72,7 +70,6 @@ public sealed class LolBinDetector : ILolBinDetector
             return new LolBinDetectionResult(entry.Name, entry.Description, entry.MitreTechnique, severity);
         }
 
-        // Process name matched but no suspicious pattern — low severity monitoring
         return new LolBinDetectionResult(entry.Name, entry.Description, entry.MitreTechnique, 3);
     }
 

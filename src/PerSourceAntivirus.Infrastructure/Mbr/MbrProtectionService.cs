@@ -3,8 +3,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Mbr;
 
-// Reads the first sector (512 bytes) of a physical drive and returns its SHA-256 hash.
-// Requires administrator privileges; uses FileStream with the physical device path.
 public sealed class MbrProtectionService : IMbrProtectionService
 {
     private const int MbrSectorSize = 512;
