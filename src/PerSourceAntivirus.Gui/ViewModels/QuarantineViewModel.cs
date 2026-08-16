@@ -31,7 +31,7 @@ public class QuarantineViewModel : ViewModelBase
             foreach (var f in files.Where(f => f.IsQuarantined))
                 Items.Add(new QuarantineItem(f.Id, f.FileName, f.FilePath, f.QuarantinedAtUtc ?? DateTime.MinValue, f.Sha256Hash));
         }
-        catch { /* non-fatal */ }
+        catch {  }
     }
 
     public async Task RestoreSelectedAsync()

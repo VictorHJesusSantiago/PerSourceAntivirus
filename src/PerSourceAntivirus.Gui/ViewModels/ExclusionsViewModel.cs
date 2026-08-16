@@ -58,10 +58,6 @@ public class ExclusionsViewModel : ViewModelBase
         ImpactPreviewMessage = "Calculando impacto...";
         try
         {
-            // [AUDIT FIX — MEDIUM, Domain 12] Previously called GetAllAsync(), which loads every
-            // ScannedFile row (plus YaraMatches/PeAnalysis/ScriptAnalysis/HashReputation includes)
-            // into memory just to count matches in C#. CountByPathPrefixAsync pushes the filter
-            // and count into SQL — no full-table load, cost independent of DB size.
             var (matchCount, maliciousInMatch) = await _scannedFileRepository.CountByPathPrefixAsync(pattern);
 
             ImpactPreviewMessage = maliciousInMatch > 0

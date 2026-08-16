@@ -48,6 +48,6 @@ public class DashboardViewModel : ViewModelBase
             Notify(nameof(ProtectionStatus));
             Notify(nameof(ProtectionColor));
         }
-        catch { /* non-fatal refresh failure */ }
+        catch {  }
     }
 }

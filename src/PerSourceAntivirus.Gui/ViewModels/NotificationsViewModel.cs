@@ -81,9 +81,7 @@ public class NotificationsViewModel : ViewModelBase
 
 public class RelayCommand<T>(Func<T, Task> execute) : System.Windows.Input.ICommand
 {
-    // ICommand requires this event. Delegating to CommandManager.RequerySuggested is the standard
     // WPF wiring — it makes the binding re-query CanExecute on UI activity instead of the event
-    // being declared and never raised (which is what the compiler was flagging as CS0067).
     public event EventHandler? CanExecuteChanged
     {
         add => System.Windows.Input.CommandManager.RequerySuggested += value;
