@@ -115,7 +115,6 @@ public sealed class WpadAbuseDetector(IServiceScopeFactory scopeFactory) : IWpad
                 return;
             }
 
-            // Check if this is a response to a wpad.dat request (HTTP 200 with body)
             if (text.StartsWith("HTTP/", StringComparison.OrdinalIgnoreCase) &&
                 text.Contains("200 OK", StringComparison.OrdinalIgnoreCase))
             {
@@ -195,7 +194,6 @@ public sealed class WpadAbuseDetector(IServiceScopeFactory scopeFactory) : IWpad
         AlertDetected?.Invoke(this, new WpadAbuseAlertEventArgs(alert));
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
     private async Task PersistAsync(WpadAbuseAlert alert)
     {
         try
