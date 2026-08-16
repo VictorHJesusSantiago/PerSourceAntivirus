@@ -1,37 +1,6 @@
-/*++
 
-Module Name:
-    PerSourceAntivirus.Driver.c
 
-Abstract:
-    Windows Kernel Minifilter Driver for PerSourceAntivirus.
-    Intercepts IRP_MJ_CREATE (pre-create), reads the first 4 KB of the
-    target file, and sends the file path + contents to the user-mode
-    C# service via a filter communication port (\PSAVScanPort).
-    The service replies with a SafeToOpen flag; on denial the IRP is
-    completed with STATUS_ACCESS_DENIED.  Clean file IDs are cached in
-    a flat 1024-bucket array (hash = FileId % 1024) to avoid re-scanning.
 
-    Additionally registers:
-      - PsSetCreateProcessNotifyRoutineEx  for process create/terminate events
-      - PsSetLoadImageNotifyRoutine        for image (DLL/EXE) load events
-      - ObRegisterCallbacks                to strip injection-capable access rights
-    These stream kernel events to user mode via a second port (\PSAVEventPort)
-    asynchronously with a 500 ms timeout (non-blocking from the callback side).
-
-Environment:
-    Kernel mode only.
-
---*/
-
-/*
-   HVCI / Memory Integrity compatibility audit (item 30):
-   - All pool allocations use ExAllocatePool2 with POOL_FLAG_NON_PAGED (no POOL_FLAG_NON_PAGED_EXECUTE).
-   - No MmMapIoSpace, no PTE manipulation, no runtime code generation.
-   - All callbacks are statically linked — no function-pointer patching.
-   - Driver is compatible with Hypervisor-Protected Code Integrity (HVCI).
-   - To enforce HVCI: compile with /INTEGRITYCHECK linker flag and sign with EV cert.
-*/
 
 #include <fltKernel.h>
 #include <dontuse.h>
@@ -39,22 +8,18 @@ Environment:
 
 #pragma prefast(disable:__WARNING_ENCODE_MEMBER_FUNCTION_POINTER, "Not modelling kernel")
 
-/* -----------------------------------------------------------------------
-   Shared structures  (pack(1) so the C# side can use the same layout)
-   --------------------------------------------------------------------- */
 #pragma pack(push, 1)
 
 #define PSAV_READ_BUFFER_SIZE   4096U
 #define PSAV_FILENAME_MAX       512U
 #define PSAV_POOL_TAG           'VSAP'
 
-/* --- Existing file-scan structures (unchanged) --- */
 
 typedef struct _PSAV_NOTIFICATION {
     FILTER_MESSAGE_HEADER   Header;
     ULONG                   BytesToScan;
     ULONG                   Flags;
-    WCHAR                   FileName[PSAV_FILENAME_MAX];   /* full NT path */
+    WCHAR                   FileName[PSAV_FILENAME_MAX];
     UCHAR                   Contents[PSAV_READ_BUFFER_SIZE];
 } PSAV_NOTIFICATION, *PPSAV_NOTIFICATION;
 
@@ -65,39 +30,37 @@ typedef struct _PSAV_REPLY {
 } PSAV_REPLY, *PPSAV_REPLY;
 
 typedef struct _PSAV_CACHE_ENTRY {
-    ULONG64  FileId;    /* 0 = empty slot */
+    ULONG64  FileId;
     BOOLEAN  IsSafe;
 } PSAV_CACHE_ENTRY, *PPSAV_CACHE_ENTRY;
 
-/* --- New kernel-event structures for \PSAVEventPort --- */
 
 typedef enum _PSAV_EVENT_TYPE {
     PsavEventProcessCreate    = 1,
     PsavEventProcessTerminate = 2,
     PsavEventImageLoad        = 3,
-    PsavEventHandleStripped        = 4,   /* ObCallback stripped access rights */
-    PsavEventUnsignedDriverLoad    = 5,   /* driver loaded from untrusted path */
-    PsavEventFltmcBlocked          = 6,   /* fltmc.exe unload attempt denied */
-    PsavEventSafeFolderViolation   = 7,   /* write to protected folder blocked */
+    PsavEventHandleStripped        = 4,
+    PsavEventUnsignedDriverLoad    = 5,
+    PsavEventFltmcBlocked          = 6,
+    PsavEventSafeFolderViolation   = 7,
 } PSAV_EVENT_TYPE;
 
 typedef struct _PSAV_KERNEL_EVENT {
-    FILTER_MESSAGE_HEADER Header;   /* 12 bytes (pack 1: ULONG + ULONGLONG) */
-    ULONG  EventType;               /* PSAV_EVENT_TYPE */
+    FILTER_MESSAGE_HEADER Header;
+    ULONG  EventType;
     ULONG  ProcessId;
     ULONG  ParentProcessId;
-    ULONG  AccessMaskStripped;      /* for PsavEventHandleStripped: which bits removed */
-    ULONGLONG ImageBase;            /* for image load */
+    ULONG  AccessMaskStripped;
+    ULONGLONG ImageBase;
     WCHAR  ImagePath[512];
     WCHAR  CommandLine[256];
 } PSAV_KERNEL_EVENT, *PPSAV_KERNEL_EVENT;
 
 typedef struct _PSAV_KERNEL_EVENT_REPLY {
-    FILTER_REPLY_HEADER Header;    /* 12 bytes */
-    ULONG Acknowledged;            /* always 1 */
+    FILTER_REPLY_HEADER Header;
+    ULONG Acknowledged;
 } PSAV_KERNEL_EVENT_REPLY, *PPSAV_KERNEL_EVENT_REPLY;
 
-/* --- Safe-folder port message structures --- */
 #define PSAV_SF_PATH_MAX 260
 
 typedef enum _PSAV_SF_CMD {
@@ -107,7 +70,6 @@ typedef enum _PSAV_SF_CMD {
     PsavSfRemoveProcess = 4,
 } PSAV_SF_CMD;
 
-/* Payload sent by user-mode via FilterSendMessage (no FILTER_MESSAGE_HEADER prefix) */
 typedef struct _PSAV_SF_PAYLOAD {
     ULONG Command;
     WCHAR Path[PSAV_SF_PATH_MAX];
@@ -115,31 +77,23 @@ typedef struct _PSAV_SF_PAYLOAD {
 
 #pragma pack(pop)
 
-/* -----------------------------------------------------------------------
-   Module globals
-   --------------------------------------------------------------------- */
 #define PSAV_CACHE_BUCKETS  1024U
 
-/* Scan port (existing) */
 static PFLT_FILTER          g_FilterHandle       = NULL;
 static PFLT_PORT            g_ServerPort         = NULL;
-static PFLT_PORT            g_ClientPort         = NULL;  /* one client at a time */
+static PFLT_PORT            g_ClientPort         = NULL;
 static FAST_MUTEX           g_ClientPortLock;
 
-/* Event port (new) */
 static PFLT_PORT            g_EventServerPort    = NULL;
 static PFLT_PORT            g_EventClientPort    = NULL;
 static FAST_MUTEX           g_EventClientPortLock;
 
-/* ObCallback registration handle */
 static PVOID                g_ObCallbackHandle   = NULL;
 
-/* Safe-folder port */
 static PFLT_PORT            g_SfServerPort       = NULL;
 static PFLT_PORT            g_SfClientPort       = NULL;
 static FAST_MUTEX           g_SfClientPortLock;
 
-/* Protected-path and whitelist tables */
 #define PSAV_SF_MAX_PROTECTED  32
 #define PSAV_SF_MAX_WHITELIST  32
 static WCHAR    g_SfProtectedPaths[PSAV_SF_MAX_PROTECTED][PSAV_SF_PATH_MAX];
@@ -148,11 +102,9 @@ static WCHAR    g_SfWhitelistProcs[PSAV_SF_MAX_WHITELIST][64];
 static ULONG    g_SfWhitelistCount = 0;
 static FAST_MUTEX g_SfDataLock;
 
-/* Flat file-ID cache (non-paged pool, allocated in DriverEntry) */
 static PPSAV_CACHE_ENTRY    g_Cache              = NULL;
 static EX_PUSH_LOCK         g_CacheLock;
 
-/* Extensions we never scan */
 static const UNICODE_STRING g_SkipExtensions[] = {
     RTL_CONSTANT_STRING(L"lnk"),
     RTL_CONSTANT_STRING(L"tmp"),
@@ -165,10 +117,7 @@ static const UNICODE_STRING g_SkipExtensions[] = {
     RTL_CONSTANT_STRING(L"mum"),
 };
 
-/* -----------------------------------------------------------------------
-   Forward declarations
-   --------------------------------------------------------------------- */
-DRIVER_UNLOAD PsavDriverUnload;   /* not used directly — see FilterUnload */
+DRIVER_UNLOAD PsavDriverUnload;
 
 _IRQL_requires_max_(PASSIVE_LEVEL)
 NTSTATUS
@@ -276,9 +225,6 @@ PsavSfMessageNotify(
     _Out_                                                           PULONG ReturnOutputBufferLength
     );
 
-/* -----------------------------------------------------------------------
-   Filter registration
-   --------------------------------------------------------------------- */
 static const FLT_OPERATION_REGISTRATION g_Callbacks[] = {
     {
         IRP_MJ_CREATE,
@@ -298,20 +244,17 @@ static const FLT_OPERATION_REGISTRATION g_Callbacks[] = {
 static const FLT_REGISTRATION g_FilterRegistration = {
     sizeof(FLT_REGISTRATION),
     FLT_REGISTRATION_VERSION,
-    0,                                          /* Flags */
-    NULL,                                       /* ContextRegistration */
+    0,
+    NULL,
     g_Callbacks,
     PsavUnload,
-    NULL,                                       /* InstanceSetup */
-    NULL,                                       /* InstanceQueryTeardown */
-    NULL,                                       /* InstanceTeardownStart */
-    NULL,                                       /* InstanceTeardownComplete */
-    NULL, NULL, NULL                            /* NameProvider callbacks */
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL, NULL, NULL
 };
 
-/* -----------------------------------------------------------------------
-   Cache helpers
-   --------------------------------------------------------------------- */
 
 _IRQL_requires_max_(APC_LEVEL)
 static VOID
@@ -359,9 +302,6 @@ PsavCacheInsert(
     FltReleasePushLock(&g_CacheLock);
 }
 
-/* -----------------------------------------------------------------------
-   Extension filter helper
-   --------------------------------------------------------------------- */
 
 _IRQL_requires_max_(APC_LEVEL)
 static BOOLEAN
@@ -378,9 +318,6 @@ PsavShouldSkipExtension(
     return FALSE;
 }
 
-/* -----------------------------------------------------------------------
-   Safe-folder helpers
-   --------------------------------------------------------------------- */
 
 _IRQL_requires_max_(APC_LEVEL)
 static BOOLEAN
@@ -442,11 +379,6 @@ PsavSfIsProcessWhitelisted(
     return FALSE;
 }
 
-/* -----------------------------------------------------------------------
-   PsavSendKernelEvent  —  helper to fire-and-forget an event to user mode
-   Runs at PASSIVE_LEVEL or APC_LEVEL (kernel callbacks are in that range).
-   Uses a 500 ms timeout so a non-listening client doesn't stall the kernel.
-   --------------------------------------------------------------------- */
 _IRQL_requires_max_(APC_LEVEL)
 static VOID
 PsavSendKernelEvent(
@@ -459,7 +391,6 @@ PsavSendKernelEvent(
     ULONG                    replyLen  = sizeof(PSAV_KERNEL_EVENT_REPLY);
     LARGE_INTEGER            timeout;
 
-    /* 500 ms in negative 100-ns units */
     timeout.QuadPart = -5000000LL;
 
     ExAcquireFastMutex(&g_EventClientPortLock);
@@ -479,13 +410,9 @@ PsavSendKernelEvent(
                 &replyLen,
                 &timeout);
 
-    /* Intentionally ignore return value — fire-and-forget. */
     UNREFERENCED_PARAMETER(status);
 }
 
-/* -----------------------------------------------------------------------
-   DriverEntry
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 NTSTATUS
 DriverEntry(
@@ -503,7 +430,6 @@ DriverEntry(
 
     UNREFERENCED_PARAMETER(RegistryPath);
 
-    /* Allocate and zero the file-ID cache from non-paged pool */
     g_Cache = (PPSAV_CACHE_ENTRY)ExAllocatePool2(
                     POOL_FLAG_NON_PAGED,
                     sizeof(PSAV_CACHE_ENTRY) * PSAV_CACHE_BUCKETS,
@@ -511,7 +437,6 @@ DriverEntry(
     if (g_Cache == NULL) {
         return STATUS_INSUFFICIENT_RESOURCES;
     }
-    /* ExAllocatePool2 zero-initialises the memory */
 
     FltInitializePushLock(&g_CacheLock);
     ExInitializeFastMutex(&g_ClientPortLock);
@@ -519,7 +444,6 @@ DriverEntry(
     ExInitializeFastMutex(&g_SfClientPortLock);
     ExInitializeFastMutex(&g_SfDataLock);
 
-    /* Register the minifilter */
     status = FltRegisterFilter(DriverObject, &g_FilterRegistration, &g_FilterHandle);
     if (!NT_SUCCESS(status)) {
         ExFreePoolWithTag(g_Cache, PSAV_POOL_TAG);
@@ -527,9 +451,6 @@ DriverEntry(
         return status;
     }
 
-    /* ----------------------------------------------------------------
-       Create \PSAVScanPort  (existing file-scan port)
-       ---------------------------------------------------------------- */
     status = FltBuildDefaultSecurityDescriptor(&sd, FLT_PORT_ALL_ACCESS);
     if (!NT_SUCCESS(status)) {
         goto Cleanup;
@@ -546,11 +467,11 @@ DriverEntry(
                     g_FilterHandle,
                     &g_ServerPort,
                     &oa,
-                    NULL,               /* ServerPortCookie */
+                    NULL,
                     PsavPortConnect,
                     PsavPortDisconnect,
-                    NULL,               /* MessageNotify */
-                    1                   /* MaxConnections */
+                    NULL,
+                    1
                     );
 
     FltFreeSecurityDescriptor(sd);
@@ -560,11 +481,6 @@ DriverEntry(
         goto Cleanup;
     }
 
-    /* ----------------------------------------------------------------
-       Create \PSAVEventPort  (new asynchronous event-streaming port)
-       INF AddReg note: add a second string value "EventPortName" = "\PSAVEventPort"
-       under HKLM\SYSTEM\CurrentControlSet\Services\PerSourceAntivirus.Driver\Parameters
-       ---------------------------------------------------------------- */
     status = FltBuildDefaultSecurityDescriptor(&sd, FLT_PORT_ALL_ACCESS);
     if (!NT_SUCCESS(status)) {
         goto Cleanup;
@@ -581,11 +497,11 @@ DriverEntry(
                     g_FilterHandle,
                     &g_EventServerPort,
                     &oa,
-                    NULL,                   /* ServerPortCookie */
+                    NULL,
                     PsavEventPortConnect,
                     PsavEventPortDisconnect,
-                    NULL,                   /* MessageNotify */
-                    1                       /* MaxConnections */
+                    NULL,
+                    1
                     );
 
     FltFreeSecurityDescriptor(sd);
@@ -595,9 +511,6 @@ DriverEntry(
         goto Cleanup;
     }
 
-    /* ----------------------------------------------------------------
-       Create \PSAVSafeFolderPort  (user→kernel config for write-blocking)
-       ---------------------------------------------------------------- */
     status = FltBuildDefaultSecurityDescriptor(&sd, FLT_PORT_ALL_ACCESS);
     if (NT_SUCCESS(status)) {
         RtlInitUnicodeString(&portName, L"\\PSAVSafeFolderPort");
@@ -607,7 +520,6 @@ DriverEntry(
                                    NULL,
                                    sd);
 
-        /* Non-fatal: if this port fails the rest of the driver still works */
         FltCreateCommunicationPort(
             g_FilterHandle,
             &g_SfServerPort,
@@ -622,35 +534,22 @@ DriverEntry(
         sd = NULL;
     }
 
-    /* ----------------------------------------------------------------
-       Begin intercepting I/O
-       ---------------------------------------------------------------- */
     status = FltStartFiltering(g_FilterHandle);
     if (!NT_SUCCESS(status)) {
         goto Cleanup;
     }
 
-    /* ----------------------------------------------------------------
-       Register process-creation notify routine (Ex variant)
-       ---------------------------------------------------------------- */
     status = PsSetCreateProcessNotifyRoutineEx(PsavProcessNotifyCallbackEx, FALSE);
     if (!NT_SUCCESS(status)) {
         goto Cleanup;
     }
 
-    /* ----------------------------------------------------------------
-       Register image-load notify routine
-       ---------------------------------------------------------------- */
     status = PsSetLoadImageNotifyRoutine(PsavLoadImageNotifyCallback);
     if (!NT_SUCCESS(status)) {
         PsSetCreateProcessNotifyRoutineEx(PsavProcessNotifyCallbackEx, TRUE);
         goto Cleanup;
     }
 
-    /* ----------------------------------------------------------------
-       Register ObCallback to strip injection-capable access rights
-       Altitude must match the minifilter altitude (325000).
-       ---------------------------------------------------------------- */
     RtlInitUnicodeString(&obAltitude, L"325000");
 
     obOps.ObjectType         = PsProcessType;
@@ -689,9 +588,6 @@ Cleanup:
     return status;
 }
 
-/* -----------------------------------------------------------------------
-   PsavUnload
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 NTSTATUS
 PsavUnload(
@@ -700,7 +596,6 @@ PsavUnload(
 {
     UNREFERENCED_PARAMETER(Flags);
 
-    /* Unregister kernel callbacks before closing ports */
     PsSetCreateProcessNotifyRoutineEx(PsavProcessNotifyCallbackEx, TRUE);
     PsSetLoadImageNotifyRoutine(PsavLoadImageNotifyCallback);
 
@@ -709,7 +604,6 @@ PsavUnload(
         g_ObCallbackHandle = NULL;
     }
 
-    /* Close ports in reverse order: safe-folder, event, scan */
     if (g_SfServerPort != NULL) {
         FltCloseCommunicationPort(g_SfServerPort);
         g_SfServerPort = NULL;
@@ -740,9 +634,6 @@ PsavUnload(
     return STATUS_SUCCESS;
 }
 
-/* -----------------------------------------------------------------------
-   Scan port connect / disconnect  (existing)
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 NTSTATUS
 PsavPortConnect(
@@ -782,9 +673,6 @@ PsavPortDisconnect(
     ExReleaseFastMutex(&g_ClientPortLock);
 }
 
-/* -----------------------------------------------------------------------
-   Event port connect / disconnect  (new)
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 NTSTATUS
 PsavEventPortConnect(
@@ -824,13 +712,6 @@ PsavEventPortDisconnect(
     ExReleaseFastMutex(&g_EventClientPortLock);
 }
 
-/* -----------------------------------------------------------------------
-   PsavProcessNotifyCallbackEx
-   Registered with PsSetCreateProcessNotifyRoutineEx.
-   CreateInfo != NULL  => process is being created.
-   CreateInfo == NULL  => process is terminating.
-   Runs at PASSIVE_LEVEL.
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 VOID
 PsavProcessNotifyCallbackEx(
@@ -846,7 +727,6 @@ PsavProcessNotifyCallbackEx(
     evt.ProcessId = HandleToULong(ProcessId);
 
     if (CreateInfo != NULL) {
-        /* Block fltmc.exe unload attempts targeting our filter */
         if (CreateInfo->ImageFileName != NULL &&
             CreateInfo->ImageFileName->Length > 0 &&
             CreateInfo->CommandLine  != NULL &&
@@ -903,11 +783,9 @@ PsavProcessNotifyCallbackEx(
             }
         }
 
-        /* Process create */
         evt.EventType        = PsavEventProcessCreate;
         evt.ParentProcessId  = HandleToULong(CreateInfo->ParentProcessId);
 
-        /* Copy image path (ImageFileName may be NULL for early system processes) */
         if (CreateInfo->ImageFileName != NULL &&
             CreateInfo->ImageFileName->Length > 0 &&
             CreateInfo->ImageFileName->Buffer != NULL)
@@ -919,10 +797,8 @@ PsavProcessNotifyCallbackEx(
             RtlCopyMemory(evt.ImagePath,
                           CreateInfo->ImageFileName->Buffer,
                           copyChars * sizeof(WCHAR));
-            /* remaining chars are zero from zero-init of evt */
         }
 
-        /* Copy command line (CommandLine may be NULL) */
         if (CreateInfo->CommandLine != NULL &&
             CreateInfo->CommandLine->Length > 0 &&
             CreateInfo->CommandLine->Buffer != NULL)
@@ -936,19 +812,12 @@ PsavProcessNotifyCallbackEx(
                           copyChars * sizeof(WCHAR));
         }
     } else {
-        /* Process terminate */
         evt.EventType = PsavEventProcessTerminate;
     }
 
     PsavSendKernelEvent(&evt);
 }
 
-/* -----------------------------------------------------------------------
-   PsavLoadImageNotifyCallback
-   Registered with PsSetLoadImageNotifyRoutine.
-   Fires whenever a DLL or EXE image is mapped into a process.
-   Runs at PASSIVE_LEVEL or APC_LEVEL.
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 VOID
 PsavLoadImageNotifyCallback(
@@ -978,7 +847,6 @@ PsavLoadImageNotifyCallback(
 
     PsavSendKernelEvent(&evt);
 
-    /* Detect kernel drivers loaded from non-trusted paths (item 26) */
     if (ImageInfo != NULL && ImageInfo->SystemModeImage &&
         FullImageName != NULL && FullImageName->Length > 0)
     {
@@ -1019,13 +887,6 @@ PsavLoadImageNotifyCallback(
     }
 }
 
-/* -----------------------------------------------------------------------
-   PsavObPreOperationCallback
-   Registered via ObRegisterCallbacks for process objects.
-   Strips PROCESS_VM_WRITE | PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION
-   from any handle-open/duplicate that would grant injection capability.
-   Returns OB_PREOP_SUCCESS (mandatory).
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 OB_PREOP_CALLBACK_STATUS
 PsavObPreOperationCallback(
@@ -1040,7 +901,6 @@ PsavObPreOperationCallback(
 
     UNREFERENCED_PARAMETER(RegistrationContext);
 
-    /* Only strip on handle-create operations */
     if (OperationInformation->Operation != OB_OPERATION_HANDLE_CREATE &&
         OperationInformation->Operation != OB_OPERATION_HANDLE_DUPLICATE) {
         return OB_PREOP_SUCCESS;
@@ -1048,16 +908,13 @@ PsavObPreOperationCallback(
 
     desired = OperationInformation->Parameters->CreateHandleInformation.DesiredAccess;
 
-    /* Check if any injection-capable bits are requested */
     if ((desired & PSAV_INJECT_MASK) == 0) {
         return OB_PREOP_SUCCESS;
     }
 
-    /* Strip the dangerous bits */
     stripped = desired & PSAV_INJECT_MASK;
     OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~PSAV_INJECT_MASK;
 
-    /* Send a stripped-access event to user mode */
     {
         PSAV_KERNEL_EVENT evt = {0};
         HANDLE            targetPid;
@@ -1065,7 +922,6 @@ PsavObPreOperationCallback(
         evt.EventType         = PsavEventHandleStripped;
         evt.AccessMaskStripped = stripped;
 
-        /* Identify the target process */
         targetPid = PsGetProcessId((PEPROCESS)OperationInformation->Object);
         evt.ProcessId = HandleToULong(targetPid);
 
@@ -1077,9 +933,6 @@ PsavObPreOperationCallback(
 #undef PSAV_INJECT_MASK
 }
 
-/* -----------------------------------------------------------------------
-   PsavPreWrite  —  write-blocking for safe folders (item 27)
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 FLT_PREOP_CALLBACK_STATUS
 PsavPreWrite(
@@ -1096,11 +949,9 @@ PsavPreWrite(
     UNREFERENCED_PARAMETER(FltObjects);
     UNREFERENCED_PARAMETER(CompletionContext);
 
-    /* Skip kernel-mode requestors */
     if (Data->RequestorMode == KernelMode)
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
 
-    /* Skip if no protected paths configured */
     if (g_SfProtectedCount == 0)
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
 
@@ -1118,7 +969,6 @@ PsavPreWrite(
     }
 
     if (PsavSfIsPathProtected(&nameInfo->Name)) {
-        /* Check if calling process is whitelisted */
         callerProc = IoThreadToProcess(Data->Thread);
         imageName  = PsGetProcessImageFileName(callerProc);
 
@@ -1126,11 +976,9 @@ PsavPreWrite(
             PSAV_KERNEL_EVENT vevt = {0};
             USHORT            copyChars;
 
-            /* Block the write */
             Data->IoStatus.Status      = STATUS_ACCESS_DENIED;
             Data->IoStatus.Information = 0;
 
-            /* Notify user mode */
             vevt.EventType = PsavEventSafeFolderViolation;
             vevt.ProcessId = HandleToULong(PsGetCurrentProcessId());
             copyChars      = nameInfo->Name.Length / sizeof(WCHAR);
@@ -1148,9 +996,6 @@ PsavPreWrite(
     return FLT_PREOP_SUCCESS_NO_CALLBACK;
 }
 
-/* -----------------------------------------------------------------------
-   Safe-folder port connect / disconnect / message-notify
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 NTSTATUS
 PsavSfPortConnect(
@@ -1209,7 +1054,6 @@ PsavSfMessageNotify(
 
     *ReturnOutputBufferLength = 0;
 
-    /* Minimum: ULONG command + at least 1 WCHAR of path */
     if (InputBuffer == NULL ||
         InputBufferLength < sizeof(ULONG) + sizeof(WCHAR))
         return STATUS_INVALID_PARAMETER;
@@ -1218,7 +1062,6 @@ PsavSfMessageNotify(
     cmd  = payload->Command;
     path = payload->Path;
 
-    /* Safety: ensure path is null-terminated within buffer */
     pathLen = 0;
     {
         ULONG maxChars = (InputBufferLength - sizeof(ULONG)) / sizeof(WCHAR);
@@ -1284,9 +1127,6 @@ PsavSfMessageNotify(
     return STATUS_SUCCESS;
 }
 
-/* -----------------------------------------------------------------------
-   PsavPreCreate  —  main interception callback  (unchanged)
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 FLT_PREOP_CALLBACK_STATUS
 PsavPreCreate(
@@ -1313,18 +1153,15 @@ PsavPreCreate(
 
     UNREFERENCED_PARAMETER(CompletionContext);
 
-    /* 1. Skip kernel-mode requestors */
     if (FLT_IS_IRP_OPERATION(Data) &&
         Data->RequestorMode == KernelMode) {
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
 
-    /* 2. Only handle user-mode file creates/opens */
     if (!FLT_IS_IRP_OPERATION(Data)) {
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
 
-    /* 3. Skip if no user-mode client is connected (fail-open) */
     ExAcquireFastMutex(&g_ClientPortLock);
     clientPort = g_ClientPort;
     ExReleaseFastMutex(&g_ClientPortLock);
@@ -1333,7 +1170,6 @@ PsavPreCreate(
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
 
-    /* 4. Get file name information */
     status = FltGetFileNameInformation(
                     Data,
                     FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT,
@@ -1348,17 +1184,12 @@ PsavPreCreate(
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
 
-    /* 5. Skip uninteresting extensions */
     if (nameInfo->Extension.Length > 0 &&
         PsavShouldSkipExtension(&nameInfo->Extension)) {
         FltReleaseFileNameInformation(nameInfo);
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
 
-    /* 6. Open the file to read its content and obtain its FileId.
-          Use FLT_FILE_NAME_QUERY_FILESYSTEM_ONLY so we don't recurse
-          into our own pre-create, and pass IO_NO_PARAMETER_CHECKING /
-          IO_FORCE_ACCESS_CHECK appropriately. */
     InitializeObjectAttributes(&oa,
                                &nameInfo->Name,
                                OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE,
@@ -1373,7 +1204,7 @@ PsavPreCreate(
                     GENERIC_READ | SYNCHRONIZE,
                     &oa,
                     &iosb,
-                    NULL,                         /* AllocationSize */
+                    NULL,
                     FILE_ATTRIBUTE_NORMAL,
                     FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                     FILE_OPEN,
@@ -1383,12 +1214,10 @@ PsavPreCreate(
                     IO_IGNORE_SHARE_ACCESS_CHECK);
 
     if (!NT_SUCCESS(status)) {
-        /* File may not exist yet or is a directory — let it through */
         FltReleaseFileNameInformation(nameInfo);
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
 
-    /* 7. Query NTFS FileId */
     status = FltQueryInformationFile(
                     FltObjects->Instance,
                     fileObject,
@@ -1416,7 +1245,6 @@ PsavPreCreate(
         }
     }
 
-    /* 8. Allocate notification buffer (non-paged, zero-initialised) */
     notification = (PPSAV_NOTIFICATION)ExAllocatePool2(
                         POOL_FLAG_NON_PAGED,
                         sizeof(PSAV_NOTIFICATION),
@@ -1425,20 +1253,17 @@ PsavPreCreate(
         FltClose(fileHandle);
         ObDereferenceObject(fileObject);
         FltReleaseFileNameInformation(nameInfo);
-        return FLT_PREOP_SUCCESS_NO_CALLBACK;   /* fail-open */
+        return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
 
-    /* 9. Copy file name (truncate safely) */
     {
         ULONG copyBytes = nameInfo->Name.Length;
         if (copyBytes > (PSAV_FILENAME_MAX - 1) * sizeof(WCHAR)) {
             copyBytes = (PSAV_FILENAME_MAX - 1) * sizeof(WCHAR);
         }
         RtlCopyMemory(notification->FileName, nameInfo->Name.Buffer, copyBytes);
-        /* remaining chars are already zero from ExAllocatePool2 */
     }
 
-    /* 10. Read first PSAV_READ_BUFFER_SIZE bytes */
     byteOffset.QuadPart = 0;
     status = FltReadFile(
                     FltObjects->Instance,
@@ -1463,15 +1288,13 @@ PsavPreCreate(
     fileObject = NULL;
     fileHandle = INVALID_HANDLE_VALUE;
 
-    /* 11. Send message to user mode; 3-second timeout */
-    timeout.QuadPart = -3LL * 10000000LL;   /* 3 s in 100-ns intervals */
+    timeout.QuadPart = -3LL * 10000000LL;
 
     ExAcquireFastMutex(&g_ClientPortLock);
     clientPort = g_ClientPort;
     ExReleaseFastMutex(&g_ClientPortLock);
 
     if (clientPort == NULL) {
-        /* Disconnected between check and send — fail-open */
         ExFreePoolWithTag(notification, PSAV_POOL_TAG);
         FltReleaseFileNameInformation(nameInfo);
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
@@ -1489,12 +1312,10 @@ PsavPreCreate(
     ExFreePoolWithTag(notification, PSAV_POOL_TAG);
     FltReleaseFileNameInformation(nameInfo);
 
-    /* 12. Evaluate reply */
     if (status == STATUS_SUCCESS && replyLength >= sizeof(PSAV_REPLY)) {
 
         BOOLEAN safe = reply.SafeToOpen;
 
-        /* Update cache with the verdict */
         if (fileIdInfo.IndexNumber.QuadPart != 0) {
             PsavCacheInsert((ULONG64)fileIdInfo.IndexNumber.QuadPart, safe);
         }
@@ -1506,7 +1327,6 @@ PsavPreCreate(
         }
 
     }
-    /* On timeout (STATUS_TIMEOUT), port error, or any other failure: fail-open */
 
     return FLT_PREOP_SUCCESS_NO_CALLBACK;
 }

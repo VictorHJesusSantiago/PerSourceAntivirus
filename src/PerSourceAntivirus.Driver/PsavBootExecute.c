@@ -1,24 +1,6 @@
-/*++
-Module Name:
-    PsavBootExecute.c
 
-Abstract:
-    Native boot-execute scanner for PerSourceAntivirus.
-    Registered in HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\BootExecute
-    as "psavboot" so it runs before the Win32 subsystem initialises.
 
-    Uses only native APIs (ntdll.dll) — no Win32 (kernel32.dll, user32.dll) calls allowed.
-    Scans \SystemRoot\System32\ for EXE/DLL files and checks basic PE header integrity.
-    Writes findings to \SystemRoot\Temp\PsavBootScan.log.
 
-    Compile with:  cl /nodefaultlib /entry:NtProcessStartup PsavBootExecute.c ntdll.lib
-    Output: psavboot.exe — copy to %SystemRoot%\system32\ or use full path in BootExecute.
-
-Environment:
-    Native NT environment (no Win32 subsystem, no heap manager at startup).
---*/
-
-/* ---- Native API type definitions (avoid pulling in full WDK) ---- */
 typedef long NTSTATUS;
 typedef unsigned long ULONG;
 typedef unsigned short USHORT;
@@ -88,7 +70,6 @@ typedef struct _FILE_DIRECTORY_INFORMATION {
     WCHAR           FileName[1];
 } FILE_DIRECTORY_INFORMATION;
 
-/* ---- Ntdll imports ---- */
 __declspec(dllimport) NTSTATUS __stdcall NtOpenFile(
     PVOID *FileHandle, ULONG DesiredAccess, POBJECT_ATTRIBUTES ObjAttr,
     PIO_STATUS_BLOCK IoStatus, ULONG ShareAccess, ULONG OpenOptions);
@@ -125,11 +106,9 @@ __declspec(dllimport) void __stdcall RtlFreeHeap(PVOID, ULONG, PVOID);
     (p)->SecurityDescriptor = (s); \
     (p)->SecurityQualityOfService = 0
 
-/* ---- PE header magic ---- */
 #define PE_MZ_SIGNATURE  0x5A4D
 #define PE_NT_SIGNATURE  0x00004550
 
-/* ---- Simple log helper ---- */
 static PVOID g_LogHandle = (PVOID)-1;
 
 static void WriteLog(PVOID fh, const char *msg, ULONG len)
@@ -138,7 +117,6 @@ static void WriteLog(PVOID fh, const char *msg, ULONG len)
     NtWriteFile(fh, 0, 0, 0, &iosb, (PVOID)msg, len, 0, 0);
 }
 
-/* ---- Check PE header integrity: verify MZ + PE signature ---- */
 static int CheckPeHeader(PVOID buf, ULONG size)
 {
     if (size < 64) return 0;
@@ -151,10 +129,9 @@ static int CheckPeHeader(PVOID buf, ULONG size)
     ULONG *ntSig = (ULONG *)((UCHAR *)buf + e_lfanew);
     if (*ntSig != PE_NT_SIGNATURE) return 0;
 
-    return 1; /* valid PE */
+    return 1;
 }
 
-/* ---- Entry point for native application ---- */
 void __stdcall NtProcessStartup(PVOID startupInfo)
 {
     NTSTATUS                    status;
@@ -173,17 +150,15 @@ void __stdcall NtProcessStartup(PVOID startupInfo)
 
     (void)startupInfo;
 
-    /* Open log file */
     RtlInitUnicodeString(&logPath, L"\\SystemRoot\\Temp\\PsavBootScan.log");
     InitializeObjectAttributes(&oa, &logPath, OBJ_CASE_INSENSITIVE, 0, 0);
     NtCreateFile(&g_LogHandle, FILE_GENERIC_WRITE, &oa, &iosb, 0,
-                 0x20 /*FILE_ATTRIBUTE_ARCHIVE*/, 0,
+                 0x20 , 0,
                  FILE_OVERWRITE_IF, FILE_SYNCHRONOUS_IO_NONALERT | FILE_NON_DIRECTORY_FILE,
                  0, 0);
 
     WriteLog(g_LogHandle, "PsavBoot: scan started\r\n", 24);
 
-    /* Open System32 directory */
     RtlInitUnicodeString(&dirPath, L"\\SystemRoot\\System32");
     InitializeObjectAttributes(&oa, &dirPath, OBJ_CASE_INSENSITIVE, 0, 0);
     status = NtOpenFile(&dirHandle,
@@ -196,11 +171,10 @@ void __stdcall NtProcessStartup(PVOID startupInfo)
         goto Done;
     }
 
-    /* Iterate directory entries */
     while (1) {
         status = NtQueryDirectoryFile(dirHandle, 0, 0, 0, &iosb,
                                       dirBuf, sizeof(dirBuf),
-                                      1 /* FileDirectoryInformation */,
+                                      1 ,
                                       0, 0, restartScan);
         restartScan = 0;
         if (!NT_SUCCESS(status) || status == STATUS_NO_MORE_FILES) break;
@@ -209,7 +183,6 @@ void __stdcall NtProcessStartup(PVOID startupInfo)
         do {
             entry = (FILE_DIRECTORY_INFORMATION *)(dirBuf + offset);
 
-            /* Process only .exe and .dll files */
             ULONG nameLen = entry->FileNameLength / sizeof(WCHAR);
             if (nameLen > 4) {
                 WCHAR *ext = &entry->FileName[nameLen - 4];
@@ -218,7 +191,6 @@ void __stdcall NtProcessStartup(PVOID startupInfo)
                 int isExe = (ext[0]=='.' && (ext[1]=='e'||ext[1]=='E') &&
                              (ext[2]=='x'||ext[2]=='X') && (ext[3]=='e'||ext[3]=='E'));
                 if (isDll || isExe) {
-                    /* Build full path: \SystemRoot\System32\<name> */
                     if (21 + nameLen + 1 < 512) {
                         int i;
                         const WCHAR prefix[] = L"\\SystemRoot\\System32\\";
@@ -243,9 +215,7 @@ void __stdcall NtProcessStartup(PVOID startupInfo)
                             scannedCount++;
                             if (!CheckPeHeader(fileBuf, bytesRead)) {
                                 badCount++;
-                                /* Log corrupt PE */
                                 WriteLog(g_LogHandle, "BAD PE: ", 8);
-                                /* Write filename (ASCII approximation) */
                                 char nameBuf[256];
                                 int k;
                                 for (k = 0; k < (int)nameLen && k < 255; k++)
@@ -266,7 +236,6 @@ void __stdcall NtProcessStartup(PVOID startupInfo)
         } while (offset < sizeof(dirBuf));
     }
 
-    /* Write summary */
     WriteLog(g_LogHandle, "PsavBoot: scan complete\r\n", 25);
 
 Done:

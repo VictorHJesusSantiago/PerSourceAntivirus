@@ -1,45 +1,17 @@
-/*++
-Module Name:
-    NdisFilter.c
 
-Abstract:
-    NDIS 6.x Lightweight Filter (LWF) driver for PerSourceAntivirus.
-    Inspects inbound/outbound network packets for known exploit signatures:
-      - EternalBlue  (MS17-010): SMBv1 TRANS2 on port 445
-      - Log4Shell    (CVE-2021-44228): JNDI injection in HTTP payloads
-      - Heartbleed   (CVE-2014-0160): Oversized TLS heartbeat
-      - BlueKeep     (CVE-2019-0708): RDP pre-auth exploit pattern
-
-    Events are written to a shared memory section \BaseNamedObjects\PSAVNdisEvents
-    for consumption by the user-mode C# service.
-
-Environment:
-    Kernel mode only. Requires WDK 10.0.26100+.
-    Build separately: not part of the minifilter CMakeLists target.
-
-Filter service name : PSAVNdisFilter
-Filter friendly name: PerSourceAntivirus Network Filter
-Filter altitude     : 320000 (FSFilter Anti-Virus range)
---*/
 
 #include <ndis.h>
 #include <wdm.h>
 
-#pragma warning(disable: 4100)  /* unreferenced formal parameter */
+#pragma warning(disable: 4100)
 
-/* -----------------------------------------------------------------------
-   Constants
-   --------------------------------------------------------------------- */
 #define PSAV_NDIS_POOL_TAG          'DNAV'
 #define PSAV_NDIS_MAJOR_VERSION     6
 #define PSAV_NDIS_MINOR_VERSION     30
 #define PSAV_EVENT_RING_SIZE        256
-#define PSAV_PAYLOAD_SNAPSHOT       128  /* bytes captured per event */
+#define PSAV_PAYLOAD_SNAPSHOT       128
 #define PSAV_FILTER_VERSION         ((PSAV_NDIS_MAJOR_VERSION << 8) | PSAV_NDIS_MINOR_VERSION)
 
-/* -----------------------------------------------------------------------
-   Shared event ring buffer (mapped to \BaseNamedObjects\PSAVNdisEvents)
-   --------------------------------------------------------------------- */
 #pragma pack(push, 1)
 
 typedef enum _PSAV_NET_SIGNATURE {
@@ -51,28 +23,25 @@ typedef enum _PSAV_NET_SIGNATURE {
 } PSAV_NET_SIGNATURE;
 
 typedef struct _PSAV_NET_EVENT {
-    ULONG     Signature;        /* PSAV_NET_SIGNATURE */
-    ULONG     SrcIpv4;          /* source IPv4, host byte order */
-    ULONG     DstIpv4;          /* dest IPv4, host byte order */
+    ULONG     Signature;
+    ULONG     SrcIpv4;
+    ULONG     DstIpv4;
     USHORT    SrcPort;
     USHORT    DstPort;
-    USHORT    PayloadLength;    /* length of snapshot below */
+    USHORT    PayloadLength;
     USHORT    Reserved;
     UCHAR     Payload[PSAV_PAYLOAD_SNAPSHOT];
-    LARGE_INTEGER Timestamp;   /* KeQuerySystemTime */
+    LARGE_INTEGER Timestamp;
 } PSAV_NET_EVENT, *PPSAV_NET_EVENT;
 
 typedef struct _PSAV_NDIS_SHARED {
-    ULONG          WriteIndex;  /* producer index (mod RING_SIZE) */
-    ULONG          ReadIndex;   /* consumer index (mod RING_SIZE) */
+    ULONG          WriteIndex;
+    ULONG          ReadIndex;
     PSAV_NET_EVENT Ring[PSAV_EVENT_RING_SIZE];
 } PSAV_NDIS_SHARED, *PPSAV_NDIS_SHARED;
 
 #pragma pack(pop)
 
-/* -----------------------------------------------------------------------
-   Filter context
-   --------------------------------------------------------------------- */
 typedef struct _PSAV_FILTER_CONTEXT {
     LIST_ENTRY          ListEntry;
     NDIS_HANDLE         FilterHandle;
@@ -80,21 +49,14 @@ typedef struct _PSAV_FILTER_CONTEXT {
     BOOLEAN             Running;
 } PSAV_FILTER_CONTEXT, *PPSAV_FILTER_CONTEXT;
 
-/* -----------------------------------------------------------------------
-   Globals
-   --------------------------------------------------------------------- */
 static NDIS_HANDLE          g_FilterDriverHandle = NULL;
 static LIST_ENTRY           g_FilterList;
 static NDIS_SPIN_LOCK       g_FilterListLock;
 
-/* Shared memory for user-mode consumption */
 static PMDL                 g_SharedMdl     = NULL;
 static PPSAV_NDIS_SHARED    g_Shared        = NULL;
 static NDIS_SPIN_LOCK       g_SharedLock;
 
-/* -----------------------------------------------------------------------
-   Forward declarations
-   --------------------------------------------------------------------- */
 DRIVER_UNLOAD PsavNdisDriverUnload;
 
 FILTER_ATTACH               PsavNdisAttach;
@@ -112,9 +74,6 @@ FILTER_STATUS                         PsavNdisStatus;
 FILTER_NET_PNP_EVENT                  PsavNdisNetPnPEvent;
 FILTER_CANCEL_SEND_NET_BUFFER_LISTS   PsavNdisCancelSend;
 
-/* -----------------------------------------------------------------------
-   Signature scanning helpers
-   --------------------------------------------------------------------- */
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static PSAV_NET_SIGNATURE
 PsavNdisScanPayload(
@@ -124,7 +83,6 @@ PsavNdisScanPayload(
     _In_ USHORT DstPort
     )
 {
-    /* EternalBlue: SMBv1 header \xFF SMB on port 445 */
     if ((SrcPort == 445 || DstPort == 445) && Length >= 5) {
         for (ULONG i = 0; i + 4 < Length; i++) {
             if (Payload[i] == 0xFF &&
@@ -136,13 +94,11 @@ PsavNdisScanPayload(
         }
     }
 
-    /* Log4Shell: "${jndi:" in HTTP payloads */
     if ((DstPort == 80 || DstPort == 8080 || DstPort == 443 || DstPort == 8443) && Length > 7) {
         static const UCHAR jndi[] = { '$', '{', 'j', 'n', 'd', 'i', ':' };
         for (ULONG i = 0; i + 7 <= Length; i++) {
             BOOLEAN match = TRUE;
             for (ULONG j = 0; j < 7; j++) {
-                /* Case-insensitive compare for ASCII letters */
                 UCHAR a = Payload[i+j];
                 UCHAR b = jndi[j];
                 if (a >= 'A' && a <= 'Z') a += 32;
@@ -152,18 +108,15 @@ PsavNdisScanPayload(
         }
     }
 
-    /* Heartbleed: TLS Heartbeat record type 0x18 with oversized payload */
     if ((SrcPort == 443 || DstPort == 443) && Length >= 7) {
-        if (Payload[0] == 0x18) {  /* TLS heartbeat record */
+        if (Payload[0] == 0x18) {
             USHORT hbLen = (USHORT)((Payload[5] << 8) | Payload[6]);
             if (hbLen > 16384) return PsavNetSigHeartbleed;
         }
     }
 
-    /* BlueKeep: TPKT + COTP CR on RDP port 3389 */
     if ((SrcPort == 3389 || DstPort == 3389) && Length >= 11) {
         if (Payload[0] == 0x03 && Payload[1] == 0x00 && Payload[4] == 0xE0) {
-            /* Check for "Microsof" or "mstshash=" cookie */
             for (ULONG i = 5; i + 8 <= Length; i++) {
                 if (Payload[i]   == 'M' && Payload[i+1] == 'i' &&
                     Payload[i+2] == 'c' && Payload[i+3] == 'r' &&
@@ -214,9 +167,6 @@ PsavNdisPublishEvent(
     NdisReleaseSpinLock(&g_SharedLock);
 }
 
-/* -----------------------------------------------------------------------
-   Inspect a chain of NET_BUFFER_LISTs for exploit signatures
-   --------------------------------------------------------------------- */
 _IRQL_requires_max_(DISPATCH_LEVEL)
 static VOID
 PsavNdisInspectNblChain(
@@ -229,25 +179,20 @@ PsavNdisInspectNblChain(
     for (nbl = NblChain; nbl != NULL; nbl = NET_BUFFER_LIST_NEXT_NBL(nbl)) {
         for (nb = NET_BUFFER_LIST_FIRST_NB(nbl); nb != NULL; nb = NET_BUFFER_NEXT_NB(nb)) {
             ULONG dataLen = NET_BUFFER_DATA_LENGTH(nb);
-            if (dataLen < 40) continue;  /* too small for any IP header + TCP */
+            if (dataLen < 40) continue;
 
-            /* Get a contiguous view into the packet data.
-               NdisGetDataBuffer copies into scratch if needed. */
             UCHAR scratch[256];
             ULONG viewLen = dataLen < sizeof(scratch) ? dataLen : sizeof(scratch);
             PUCHAR data = NdisGetDataBuffer(nb, viewLen, scratch, 1, 0);
             if (data == NULL) continue;
 
-            /* Minimal Ethernet + IPv4 + TCP parsing */
-            /* Skip Ethernet header (14 bytes) */
             if (viewLen < 14 + 20 + 4) continue;
             PUCHAR ipHdr = data + 14;
 
-            /* Check EtherType = 0x0800 (IPv4) */
             if (data[12] != 0x08 || data[13] != 0x00) continue;
 
             UCHAR  protocol = ipHdr[9];
-            if (protocol != 6) continue;  /* TCP only */
+            if (protocol != 6) continue;
 
             ULONG  srcIpv4 = (ipHdr[12] << 24) | (ipHdr[13] << 16) | (ipHdr[14] << 8) | ipHdr[15];
             ULONG  dstIpv4 = (ipHdr[16] << 24) | (ipHdr[17] << 16) | (ipHdr[18] << 8) | ipHdr[19];
@@ -279,9 +224,6 @@ PsavNdisInspectNblChain(
     }
 }
 
-/* -----------------------------------------------------------------------
-   NDIS filter callbacks
-   --------------------------------------------------------------------- */
 _Use_decl_annotations_
 NDIS_STATUS
 PsavNdisAttach(
@@ -493,9 +435,6 @@ VOID PsavNdisDriverUnload(_In_ PDRIVER_OBJECT DriverObject)
     }
 }
 
-/* -----------------------------------------------------------------------
-   DriverEntry
-   --------------------------------------------------------------------- */
 NTSTATUS
 DriverEntry(
     _In_ PDRIVER_OBJECT  DriverObject,
@@ -510,12 +449,10 @@ DriverEntry(
 
     DriverObject->DriverUnload = PsavNdisDriverUnload;
 
-    /* Initialise list and locks */
     InitializeListHead(&g_FilterList);
     NdisAllocateSpinLock(&g_FilterListLock);
     NdisAllocateSpinLock(&g_SharedLock);
 
-    /* Allocate shared ring buffer (non-paged, non-executable) */
     sharedMem = ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(PSAV_NDIS_SHARED), PSAV_NDIS_POOL_TAG);
     if (sharedMem != NULL) {
         RtlZeroMemory(sharedMem, sizeof(PSAV_NDIS_SHARED));
@@ -526,7 +463,6 @@ DriverEntry(
         }
     }
 
-    /* Register filter driver */
     RtlZeroMemory(&chars, sizeof(chars));
     chars.Header.Type     = NDIS_OBJECT_TYPE_FILTER_DRIVER_CHARACTERISTICS;
     chars.Header.Size     = sizeof(NDIS_FILTER_DRIVER_CHARACTERISTICS);
