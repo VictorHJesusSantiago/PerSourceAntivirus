@@ -35,7 +35,6 @@ public sealed class ScreenCaptureDetector : IScreenCaptureDetector
         _scopeFactory = scopeFactory;
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from monitor threads.
     private async Task PersistAsync(ScreenCaptureAlert alert)
     {
         try

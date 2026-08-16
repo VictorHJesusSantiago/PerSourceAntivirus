@@ -58,7 +58,6 @@ public sealed class ScreenLockerDetector : IScreenLockerDetector
         _scopeFactory = scopeFactory;
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from monitor threads.
     private async Task PersistAsync(ScreenLockerAlert alert)
     {
         try

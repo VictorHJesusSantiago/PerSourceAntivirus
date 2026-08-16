@@ -23,7 +23,6 @@ public sealed class WebcamAccessMonitor : IWebcamAccessMonitor
         _scopeFactory = scopeFactory;
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; events are raised from monitor threads.
     private async Task PersistAsync(WebcamAccessEvent accessEvent)
     {
         try
