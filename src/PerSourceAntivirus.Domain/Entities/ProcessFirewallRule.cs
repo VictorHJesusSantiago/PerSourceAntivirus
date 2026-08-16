@@ -4,7 +4,7 @@ public class ProcessFirewallRule
 {
     public Guid Id { get; set; }
     public required string ProcessPath { get; set; }
-    public required string Action { get; set; } // Block | Allow
+    public required string Action { get; set; }
     public string? Reason { get; set; }
     public DateTime AddedAtUtc { get; set; }
 }

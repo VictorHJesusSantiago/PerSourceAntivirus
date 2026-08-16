@@ -7,7 +7,7 @@ public class ProcessDoppelgangingAlert
     public int ProcessId { get; set; }
     public required string ReportedImagePath { get; set; }
     public bool ImageExistsOnDisk { get; set; }
-    public required string SuspicionReason { get; set; } // "ImageFileNotFound","TempPathImage","PathMismatch"
+    public required string SuspicionReason { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }
 }

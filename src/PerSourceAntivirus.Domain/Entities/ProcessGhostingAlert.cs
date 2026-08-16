@@ -8,7 +8,7 @@ public class ProcessGhostingAlert
     public required string ReportedImagePath { get; set; }
     public bool ImageFileExistsOnDisk { get; set; }
     public bool ImageFileAccessible { get; set; }
-    public required string DetectionMethod { get; set; } // "FileNotFoundOnDisk","FilePendingDelete","HandleOpenedWithDeleteFlag"
+    public required string DetectionMethod { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }
 }

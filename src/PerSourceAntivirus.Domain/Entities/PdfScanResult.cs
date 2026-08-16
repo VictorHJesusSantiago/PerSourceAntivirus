@@ -12,7 +12,7 @@ public class PdfScanResult
     public bool HasXfa { get; set; }
     public bool HasEmbeddedFiles { get; set; }
     public bool HasObjStm { get; set; }
-    public required string MaliciousObjectTypes { get; set; }  // comma-joined list
+    public required string MaliciousObjectTypes { get; set; }
     public int RiskScore { get; set; }
     public DateTime ScannedAtUtc { get; set; }
 }
