@@ -5,9 +5,6 @@ using PerSourceAntivirus.Domain.Entities;
 
 namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 
-// AlienVault OTX — pulls indicators from the subscribed-pulses feed. Requires an API key
-// (Settings > Threat Intel); with no key configured this becomes a graceful no-op, same
-// convention as VirusTotalHashReputationService.
 public sealed class OtxThreatFeedUpdater : IThreatFeedUpdater
 {
     public string FeedName => "AlienVault OTX";

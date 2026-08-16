@@ -4,9 +4,6 @@ using PerSourceAntivirus.Domain.Entities;
 
 namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 
-// PhishTank — bulk CSV of verified-online phishing URLs; extracts the registered domain from
-// each URL and feeds the domain blocklist (used for both file/script analysis and DNS/hosts
-// filtering) plus records the raw URL as a CustomIoc for hunting.
 public sealed class PhishTankUpdater : IThreatFeedUpdater
 {
     public string FeedName => "PhishTank";
@@ -93,12 +90,11 @@ public sealed class PhishTankUpdater : IThreatFeedUpdater
         }
     }
 
-    // CSV columns: phish_id,url,phish_detail_url,submission_time,verified,verification_time,online,target
     internal static List<string> ParseUrls(string csv)
     {
         var urls = new List<string>();
         var lines = csv.Split('\n');
-        for (int i = 1; i < lines.Length; i++) // skip header
+        for (int i = 1; i < lines.Length; i++)
         {
             var line = lines[i].Trim();
             if (line.Length == 0) continue;
