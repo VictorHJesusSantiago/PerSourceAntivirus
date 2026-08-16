@@ -48,10 +48,6 @@ public sealed class IpDomainReputationScoringService(
         return new ReputationScoreResult(domain, Math.Min(score + iocScore, 100), sources);
     }
 
-    // [AUDIT FIX — MEDIUM, Domain 12/15] Was loading every active CustomIoc into memory
-    // (repository.GetAllAsync()) just to check one value — a full-table scan per reputation
-    // lookup that gets worse as the IOC table grows from feed imports. FindActiveByValueAsync
-    // pushes the equality filter into SQL instead.
     private async Task AppendCustomIocMatchesAsync(string value, List<string> sources, CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();

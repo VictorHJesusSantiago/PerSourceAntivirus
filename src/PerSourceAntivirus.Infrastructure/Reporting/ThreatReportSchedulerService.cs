@@ -4,8 +4,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Reporting;
 
-// Generates weekly/monthly HTML threat reports automatically (ReportGenerator already builds
-// the HTML on demand — this just triggers it on a schedule and writes to a fixed directory).
 public sealed class ThreatReportSchedulerService(IServiceScopeFactory scopeFactory, string outputDirectory) : BackgroundService
 {
     private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(6);

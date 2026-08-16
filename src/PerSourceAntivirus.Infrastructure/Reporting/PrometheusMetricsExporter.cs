@@ -96,9 +96,6 @@ public sealed class PrometheusMetricsExporter(
         return sb.ToString();
     }
 
-    // [ADR-001] RED metrics per detector. Alert counters alone cannot distinguish "no threats
-    // found" from "detector dead": these expose the scan rate, error rate and duration that make
-    // a stalled or permanently-failing detector visible to alerting.
     private void AppendDetectorHealth(StringBuilder sb)
     {
         var snapshot = detectorDiagnostics.GetHealthSnapshot();
@@ -118,8 +115,6 @@ public sealed class PrometheusMetricsExporter(
         foreach (var d in snapshot)
             sb.AppendLine($"psav_detector_last_scan_duration_seconds{{detector=\"{Escape(d.DetectorName)}\"}} {d.LastScanDurationSeconds.ToString("F4", CultureInfo.InvariantCulture)}");
 
-        // Inspected vs skipped exposes the "blind detector" case that scan counters alone hide:
-        // a detector can complete every scan successfully while failing to open a single process.
         sb.AppendLine("# HELP psav_detector_items_inspected_total Items (processes/modules) successfully inspected");
         sb.AppendLine("# TYPE psav_detector_items_inspected_total counter");
         foreach (var d in snapshot)
@@ -130,7 +125,6 @@ public sealed class PrometheusMetricsExporter(
         foreach (var d in snapshot)
             sb.AppendLine($"psav_detector_items_skipped_total{{detector=\"{Escape(d.DetectorName)}\"}} {d.ItemsSkipped}");
 
-        // Age of the last success is the key liveness signal: alert when it stops advancing.
         sb.AppendLine("# HELP psav_detector_seconds_since_last_success Seconds since the detector last completed a scan");
         sb.AppendLine("# TYPE psav_detector_seconds_since_last_success gauge");
         var now = DateTime.UtcNow;
