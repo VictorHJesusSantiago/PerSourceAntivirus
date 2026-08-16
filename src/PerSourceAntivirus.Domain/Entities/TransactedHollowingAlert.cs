@@ -7,7 +7,7 @@ public class TransactedHollowingAlert
     public int ProcessId { get; set; }
     public required string SuspiciousModulePath { get; set; }
     public bool ModuleFileExistsOnDisk { get; set; }
-    public required string DetectionMethod { get; set; } // "ModuleFileNotOnDisk","TransactedPath","MappedSectionNoFile","ImageMappedPrivate"
+    public required string DetectionMethod { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }
 }
