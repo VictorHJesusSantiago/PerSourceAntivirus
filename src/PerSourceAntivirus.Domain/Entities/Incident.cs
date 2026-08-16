@@ -6,7 +6,7 @@ public class Incident
     public required string Title { get; set; }
     public required string Description { get; set; }
     public int Severity { get; set; }
-    public required string Status { get; set; } // Open/Investigating/Resolved/Closed
+    public required string Status { get; set; }
     public int AlertCount { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime? ResolvedAtUtc { get; set; }

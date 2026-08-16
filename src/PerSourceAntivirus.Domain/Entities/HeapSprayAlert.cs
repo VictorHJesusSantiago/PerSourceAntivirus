@@ -7,7 +7,7 @@ public class HeapSprayAlert
     public int ProcessId { get; set; }
     public long TotalPrivateCommittedBytes { get; set; }
     public int SuspiciousRegionCount { get; set; }
-    public double AverageRegionEntropy { get; set; } // Low entropy = repetitive = spray
+    public double AverageRegionEntropy { get; set; }
     public required string SuspicionReason { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }
