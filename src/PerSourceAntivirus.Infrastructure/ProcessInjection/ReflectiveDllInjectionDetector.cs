@@ -60,9 +60,6 @@ public sealed class ReflectiveDllInjectionDetector : IReflectiveDllInjectionDete
         _scopeFactory = scopeFactory;
     }
 
-    // [AUDIT FIX — HIGH] Like AtomBombingDetector, this raised AlertDetected and nothing else —
-    // no subscribers exist, and IReflectiveDllInjectionAlertRepository was registered but never
-    // resolved, so every reflective-injection detection was discarded instead of recorded.
     private async Task PersistAsync(ReflectiveDllInjectionAlert alert, CancellationToken ct)
     {
         try
@@ -103,7 +100,7 @@ public sealed class ReflectiveDllInjectionDetector : IReflectiveDllInjectionDete
             {
                 await ScanProcessAsync(proc.Id, proc.ProcessName, ct);
             }
-            catch { /* process may have exited */ }
+            catch {  }
             finally
             {
                 proc.Dispose();
@@ -118,7 +115,6 @@ public sealed class ReflectiveDllInjectionDetector : IReflectiveDllInjectionDete
 
         try
         {
-            // Enumerate module base addresses
             var moduleBaseAddresses = new HashSet<long>();
             EnumProcessModules(handle, new IntPtr[256], 256 * 8, out uint needed);
             if (needed > 0)

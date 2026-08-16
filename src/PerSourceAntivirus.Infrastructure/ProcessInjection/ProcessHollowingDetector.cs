@@ -83,7 +83,7 @@ public sealed class ProcessHollowingDetector : IProcessHollowingDetector, IDispo
 
                 _ = Task.Run(() => ScanProcessAsync(pid, procName, parentPid, parentName));
             }
-            catch { /* don't crash the watcher */ }
+            catch {  }
         };
 
         _watcher.Start();
@@ -166,7 +166,7 @@ public sealed class ProcessHollowingDetector : IProcessHollowingDetector, IDispo
                 AlertDetected?.Invoke(this, new ProcessHollowingAlertEventArgs(alert));
             }
         }
-        catch { /* best-effort */ }
+        catch {  }
         finally
         {
             CloseHandle(handle);

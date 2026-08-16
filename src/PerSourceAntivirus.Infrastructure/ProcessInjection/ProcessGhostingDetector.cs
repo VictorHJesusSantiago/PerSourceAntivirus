@@ -32,10 +32,6 @@ public sealed class ProcessGhostingDetector : IProcessGhostingDetector, IDisposa
         _scopeFactory = scopeFactory;
     }
 
-    // [AUDIT FIX — CRITICAL] This detector is a singleton but used to take a *scoped*
-    // IProcessGhostingAlertRepository directly (captive dependency): one AppDbContext captured for the
-    // process lifetime and written to from background scan threads, where it is not thread-safe.
-    // Scope-per-write is the pattern CLAUDE.md mandates for exactly this reason.
     private async Task PersistAsync(ProcessGhostingAlert alert, CancellationToken ct)
     {
         try
@@ -122,7 +118,6 @@ public sealed class ProcessGhostingDetector : IProcessGhostingDetector, IDisposa
 
                 if (pid <= 4) continue;
 
-                // Skip already checked PIDs within the last 5 minutes
                 var now = DateTime.UtcNow;
                 if (_checkedPids.TryGetValue(pid, out var last) && (now - last).TotalMinutes < 5)
                     continue;
@@ -138,7 +133,6 @@ public sealed class ProcessGhostingDetector : IProcessGhostingDetector, IDisposa
     {
         if (pid <= 4) return;
 
-        // Try to get image path from the live process if not provided
         if (string.IsNullOrEmpty(imagePath))
         {
             try
@@ -161,7 +155,6 @@ public sealed class ProcessGhostingDetector : IProcessGhostingDetector, IDisposa
         }
         catch { processName = System.IO.Path.GetFileNameWithoutExtension(imagePath); }
 
-        // Check 1: image file does not exist on disk
         bool fileExists = System.IO.File.Exists(imagePath);
         if (!fileExists)
         {
@@ -180,7 +173,6 @@ public sealed class ProcessGhostingDetector : IProcessGhostingDetector, IDisposa
             return;
         }
 
-        // Check 2: image is in temp directory (suspicious even if file currently exists)
         bool inTempDir = IsInTempDirectory(imagePath);
         if (inTempDir)
         {
@@ -213,9 +205,6 @@ public sealed class ProcessGhostingDetector : IProcessGhostingDetector, IDisposa
             }
         }
 
-        // Check 3: file exists but is not accessible (potential pending-delete).
-        // The open itself is the probe — success means "accessible", and only the IOException
-        // path below raises an alert, so no flag needs to be captured.
         try
         {
             using var fs = new System.IO.FileStream(imagePath, System.IO.FileMode.Open,

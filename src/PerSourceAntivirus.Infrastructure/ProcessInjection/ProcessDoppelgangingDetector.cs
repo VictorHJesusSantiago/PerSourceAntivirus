@@ -55,7 +55,7 @@ public sealed class ProcessDoppelgangingDetector : IProcessDoppelgangingDetector
 
                 _ = Task.Run(() => AnalyzeProcessAsync(pid, procName, execPath));
             }
-            catch { /* don't crash the watcher */ }
+            catch {  }
         };
 
         _watcher.Start();
@@ -110,14 +110,13 @@ public sealed class ProcessDoppelgangingDetector : IProcessDoppelgangingDetector
                             string ntPath = Marshal.PtrToStringUni(strPtr, len / 2) ?? string.Empty;
                             if (ntPath.Length > 0)
                             {
-                                // NT device path won't match a Win32 path directly
                                 reason = "PathMismatch";
                                 severity = 5;
                             }
                         }
                     }
                 }
-                catch { /* best-effort */ }
+                catch {  }
                 finally
                 {
                     if (buf != IntPtr.Zero) Marshal.FreeHGlobal(buf);
