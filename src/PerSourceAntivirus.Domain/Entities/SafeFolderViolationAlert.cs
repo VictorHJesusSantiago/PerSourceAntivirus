@@ -6,7 +6,7 @@ public class SafeFolderViolationAlert
     public required string ProcessName { get; set; }
     public int ProcessId { get; set; }
     public required string ProtectedPath { get; set; }
-    public required string AttemptedOperation { get; set; } // "Write","Delete","Rename","Overwrite"
+    public required string AttemptedOperation { get; set; }
     public bool WasBlocked { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }

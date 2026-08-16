@@ -8,6 +8,6 @@ public class SecureBootStatusSnapshot
     public bool BootloaderSigned { get; set; }
     public bool BootloaderTrusted { get; set; }
     public required string BootloaderHashSha256 { get; set; }
-    public string? Anomalies { get; set; } // comma-separated
+    public string? Anomalies { get; set; }
     public DateTime CheckedAtUtc { get; set; }
 }
