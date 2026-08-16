@@ -11,13 +11,6 @@ public sealed class SystemRestoreService : ISystemRestoreService
 {
     private const int TimeoutMs = 60_000;
 
-    // [AUDIT FIX — HIGH, A03 Injection] `description` is arbitrary caller-supplied text.
-    // The previous implementation embedded it into a `-Command "..."` command-line string with
-    // manual single/double-quote escaping — a well-known fragile pattern (Windows argv parsing
-    // and PowerShell string parsing interact in non-obvious ways around backslash+quote
-    // sequences). RunPowerShellAsync now passes the whole script via -EncodedCommand
-    // (Base64 UTF-16LE), which PowerShell decodes as data, never as shell syntax — no escaping
-    // is needed or possible to get wrong, regardless of what `description` contains.
     public async Task<bool> CreateRestorePointAsync(string description, CancellationToken ct = default)
     {
         var script = $"Checkpoint-Computer -Description '{description.Replace("'", "''")}' -RestorePointType MODIFY_SETTINGS";
@@ -52,7 +45,6 @@ public sealed class SystemRestoreService : ISystemRestoreService
                 if (el.TryGetProperty("CreationTime", out var createdEl))
                 {
                     var raw = createdEl.ToString();
-                    // WMI DMTF date-time embedded via /Date(ticks)/ from PowerShell's ConvertTo-Json
                     var digits = new string(raw.Where(char.IsDigit).ToArray());
                     if (digits.Length > 0 && long.TryParse(digits, out var ms))
                         created = DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime;
@@ -70,7 +62,6 @@ public sealed class SystemRestoreService : ISystemRestoreService
 
     public async Task<bool> RestoreToPointAsync(int sequenceNumber, CancellationToken ct = default)
     {
-        // Restore-Computer triggers a reboot — this call only issues the request.
         var script = $"Restore-Computer -RestorePoint {sequenceNumber} -Confirm:$false";
         var (exitCode, _, _) = await RunPowerShellAsync(script, ct).ConfigureAwait(false);
         return exitCode == 0;

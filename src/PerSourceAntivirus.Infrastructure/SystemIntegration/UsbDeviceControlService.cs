@@ -90,7 +90,6 @@ public sealed partial class UsbDeviceControlService : IUsbDeviceControlService
 
         if (allowed || _allowedVendorProductIds.Count == 0)
         {
-            // Empty allowlist = feature not configured yet → fail open, log only.
             action = "Allowed";
         }
         else
@@ -113,16 +112,10 @@ public sealed partial class UsbDeviceControlService : IUsbDeviceControlService
         DeviceEvent?.Invoke(this, new UsbDeviceEventArgs(evt));
     }
 
-    // pnputil is the supported Microsoft tool for disabling a specific device instance;
-    // avoids reimplementing SetupDi device-class enable/disable APIs.
     private static bool TryDisableDevice(string deviceInstanceId)
     {
         try
         {
-            // [AUDIT FIX — MEDIUM, defense in depth] deviceInstanceId comes from WMI (OS-controlled,
-            // not directly user input) so this wasn't exploitable in practice, but building the
-            // argument via string interpolation still relied on correct quote-escaping. ArgumentList
-            // passes it as a single argv token — no escaping to get wrong regardless of content.
             var psi = new ProcessStartInfo("pnputil.exe")
             {
                 UseShellExecute = false,
