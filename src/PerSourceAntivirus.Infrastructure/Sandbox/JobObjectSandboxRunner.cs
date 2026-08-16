@@ -4,8 +4,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Sandbox;
 
-// Runs an executable inside a Windows Job Object that restricts resource usage.
-// Restrictions: kill-on-job-close, active process limit = 1 (blocks child spawning).
 public sealed class JobObjectSandboxRunner : ISandboxRunner
 {
     public async Task<SandboxRunResult> RunAsync(
@@ -58,7 +56,7 @@ public sealed class JobObjectSandboxRunner : ISandboxRunner
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
                 killedByTimeout = true;
-                try { process.Kill(entireProcessTree: true); } catch { /* already exited */ }
+                try { process.Kill(entireProcessTree: true); } catch {  }
             }
 
             sw.Stop();
@@ -105,9 +103,6 @@ public sealed class JobObjectSandboxRunner : ISandboxRunner
         }
     }
 
-    // Rough heuristic: the process had child processes if any process started after it.
-    // Job Object with ActiveProcessLimit=1 would have prevented actual spawning, so
-    // this flag reflects whether the sandbox would have blocked a child process attempt.
     private static bool CheckChildProcessCreated(System.Diagnostics.Process process)
     {
         try

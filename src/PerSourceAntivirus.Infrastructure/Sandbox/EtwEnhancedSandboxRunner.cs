@@ -26,7 +26,6 @@ public class EtwEnhancedSandboxRunner(ISandboxRunner baseSandbox) : IEnhancedSan
         string? errorMessage = null;
         bool success = false;
 
-        // Start ETW session for behavioral monitoring
         TraceEventSession? etwSession = null;
         try
         {
@@ -61,19 +60,16 @@ public class EtwEnhancedSandboxRunner(ISandboxRunner baseSandbox) : IEnhancedSan
             etwSession.Source.Kernel.TcpIpConnect += data =>
                 networkConns.Add($"{data.daddr}:{data.dport}");
 
-            // Process ETW events in background
             var etwTask = Task.Run(() =>
             {
                 try { etwSession.Source.Process(); }
-                catch { /* session disposed */ }
+                catch {  }
             }, ct);
 
-            // Run the sandbox
             var sandboxResult = await baseSandbox.RunAsync(filePath, (int)timeout.TotalSeconds, ct);
             success = sandboxResult.ErrorMessage is null;
             if (!success) errorMessage = sandboxResult.ErrorMessage;
 
-            // Give ETW a moment to flush remaining events
             await Task.Delay(500, CancellationToken.None);
             etwSession.Stop();
         }
@@ -89,7 +85,6 @@ public class EtwEnhancedSandboxRunner(ISandboxRunner baseSandbox) : IEnhancedSan
 
         sw.Stop();
 
-        // Analyze collected behavior for suspicious indicators
         AnalyzeBehavior(processes, filesCreated, filesDeleted, registryKeys, networkConns, indicators);
 
         var verdict = indicators.Count switch
@@ -119,29 +114,24 @@ public class EtwEnhancedSandboxRunner(ISandboxRunner baseSandbox) : IEnhancedSan
         ConcurrentBag<string> networkConns,
         ConcurrentBag<string> indicators)
     {
-        // Suspicious process creation
         var suspiciousProcesses = new[] { "cmd.exe", "powershell.exe", "wscript.exe", "cscript.exe", "mshta.exe", "regsvr32.exe", "rundll32.exe" };
         foreach (var p in processes)
             if (suspiciousProcesses.Any(s => p.Contains(s, StringComparison.OrdinalIgnoreCase)))
                 indicators.Add($"Suspicious process spawned: {p}");
 
-        // Files created in temp/startup locations
         var suspiciousPaths = new[] { @"\Temp\", @"\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\", @"\System32\", @"\SysWOW64\" };
         foreach (var f in filesCreated)
             if (suspiciousPaths.Any(s => f.Contains(s, StringComparison.OrdinalIgnoreCase)))
                 indicators.Add($"File created in sensitive path: {f}");
 
-        // Mass file deletion (ransomware indicator)
         if (filesDeleted.Count > 20)
             indicators.Add($"Mass file deletion detected: {filesDeleted.Count} files");
 
-        // Registry persistence locations
         var persistenceKeys = new[] { @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", @"SYSTEM\CurrentControlSet\Services\" };
         foreach (var key in registryKeys)
             if (persistenceKeys.Any(s => key.Contains(s, StringComparison.OrdinalIgnoreCase)))
                 indicators.Add($"Registry persistence attempt: {key}");
 
-        // Network connections
         if (networkConns.Count > 0)
             indicators.Add($"Network activity: {networkConns.Count} connections ({string.Join(", ", networkConns.Take(3))})");
     }
