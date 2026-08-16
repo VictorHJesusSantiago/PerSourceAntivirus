@@ -7,7 +7,6 @@ namespace PerSourceAntivirus.Infrastructure.Amsi;
 [SupportedOSPlatform("windows")]
 public sealed class AmsiProviderService : IAmsiProvider
 {
-    // Use a stable GUID for the PSAV AMSI provider
     private const string ProviderGuid = "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}";
     private const string AmsiProvidersKey = @"SOFTWARE\Microsoft\AMSI\Providers";
 
@@ -17,13 +16,10 @@ public sealed class AmsiProviderService : IAmsiProvider
     {
         try
         {
-            // Register CLSID under HKLM\SOFTWARE\Microsoft\AMSI\Providers\{GUID}
             var keyPath = $@"{AmsiProvidersKey}\{ProviderGuid}";
             using var key = Registry.LocalMachine.CreateSubKey(keyPath, writable: true);
             key?.SetValue("", "PerSourceAntivirus AMSI Provider", RegistryValueKind.String);
 
-            // Also register under HKLM\SOFTWARE\Classes\CLSID\{GUID}\InProcServer32
-            // pointing to our CLI/service executable
             var exePath = Environment.ProcessPath
                 ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName
                 ?? string.Empty;
@@ -36,7 +32,6 @@ public sealed class AmsiProviderService : IAmsiProvider
         }
         catch (UnauthorizedAccessException)
         {
-            // Requires elevation — silently fail; caller checks IsRegistered
         }
         return Task.CompletedTask;
     }

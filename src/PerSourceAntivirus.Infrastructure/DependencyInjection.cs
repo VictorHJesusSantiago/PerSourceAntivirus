@@ -7,10 +7,6 @@ using PerSourceAntivirus.Infrastructure.Persistence;
 
 namespace PerSourceAntivirus.Infrastructure;
 
-// Composition root. [ADR-002] This used to be a single ~580-line method with ~200 registrations,
-// where a wrong lifetime was effectively invisible in review — the audit found 14 singletons
-// capturing scoped repositories hiding in it. The registrations now live in themed modules under
-// Composition/, and DependencyInjectionGraphTests enforces the lifetime rules mechanically.
 public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
@@ -18,8 +14,6 @@ public static class DependencyInjection
         AddHttpClients(services);
         AddEncryptedDbContext(services, configuration);
 
-        // Paths and the shared provider instances are computed once and handed to every module,
-        // so no two modules can construct competing copies of the same blocklist/scanner.
         var ctx = InfrastructureBuildContext.Create(configuration);
 
         services
@@ -35,10 +29,6 @@ public static class DependencyInjection
         return services;
     }
 
-    // [AUDIT FIX — Domain 15] Every HTTP-calling service used to hold its own `new HttpClient()`
-    // (socket exhaustion + DNS that never refreshes) or share one process-wide static instance
-    // (no handler rotation). IHttpClientFactory pools and recycles handlers; services now call
-    // CreateClient() per request against these named policies.
     private static void AddHttpClients(IServiceCollection services)
     {
         services.AddHttpClient(PerSourceAntivirus.Infrastructure.ThreatFeeds.ThreatFeedHttpClient.Name, client =>
@@ -52,9 +42,6 @@ public static class DependencyInjection
         });
     }
 
-    // Encrypt persourceav.db at rest via SQLCipher. The e_sqlcipher provider transparently
-    // reads existing plaintext databases too, so this is safe to set unconditionally;
-    // DatabaseEncryptionMigrator then converts any pre-existing plaintext file in place.
     private static void AddEncryptedDbContext(IServiceCollection services, IConfiguration configuration)
     {
         SQLitePCL.raw.SetProvider(new SQLitePCL.SQLite3Provider_e_sqlcipher());
