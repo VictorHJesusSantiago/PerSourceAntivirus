@@ -5,9 +5,6 @@ using PerSourceAntivirus.Domain.Entities;
 
 namespace PerSourceAntivirus.Infrastructure.Network;
 
-// Detects DNS tunneling by profiling, per (source host, registered domain), the query rate,
-// label entropy and query-name length within a sliding window. Tunneling tools (iodine, dnscat2,
-// DNSExfiltrator) encode payloads as high-entropy subdomain labels and issue many queries/minute.
 public sealed class DnsTunnelingDetector : IDnsTunnelingDetector
 {
     private readonly IServiceScopeFactory _scopeFactory;
@@ -18,7 +15,7 @@ public sealed class DnsTunnelingDetector : IDnsTunnelingDetector
 
     private const int WindowSeconds = 60;
     private const int MinQueriesForVolumeAlert = 40;
-    private const double HighEntropyThreshold = 3.5; // bits/char — random base32/base64 labels land ~3.8-4.0
+    private const double HighEntropyThreshold = 3.5;
     private const int LongLabelLength = 45;
 
     private sealed class Window

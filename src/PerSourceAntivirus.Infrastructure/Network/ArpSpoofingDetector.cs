@@ -12,9 +12,7 @@ namespace PerSourceAntivirus.Infrastructure.Network;
 [SupportedOSPlatform("windows")]
 public sealed class ArpSpoofingDetector(IServiceScopeFactory scopeFactory) : IArpSpoofingDetector
 {
-    // IP → last seen MAC
     private readonly ConcurrentDictionary<string, string> _ipToMac = new(StringComparer.OrdinalIgnoreCase);
-    // IP → list of (MAC, timestamp) seen in last minute
     private readonly ConcurrentDictionary<string, List<(string mac, DateTime seen)>> _recentMacs = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTime> _recentAlerts = new();
     private volatile bool _running;
@@ -32,7 +30,7 @@ public sealed class ArpSpoofingDetector(IServiceScopeFactory scopeFactory) : IAr
 
             device.OnPacketArrival += OnPacketArrival;
             device.Open(DeviceModes.Promiscuous, 1000);
-            device.Filter = "arp";  // BPF filter: only ARP packets
+            device.Filter = "arp";
             device.StartCapture();
 
             while (_running && !ct.IsCancellationRequested)
@@ -70,7 +68,6 @@ public sealed class ArpSpoofingDetector(IServiceScopeFactory scopeFactory) : IAr
 
             var now = DateTime.UtcNow;
 
-            // Track recent MACs for this IP
             var macList = _recentMacs.GetOrAdd(senderIp, _ => []);
             lock (macList)
             {
@@ -78,7 +75,6 @@ public sealed class ArpSpoofingDetector(IServiceScopeFactory scopeFactory) : IAr
                 if (!macList.Any(m => m.mac == senderMac))
                     macList.Add((senderMac, now));
 
-                // Multiple MACs for same IP in 1 min = spoofing
                 if (macList.Count > 1)
                 {
                     FireAlert(senderMac, senderIp,
@@ -87,13 +83,11 @@ public sealed class ArpSpoofingDetector(IServiceScopeFactory scopeFactory) : IAr
                 }
             }
 
-            // Gratuitous ARP: sender IP == target IP
             if (senderIp == targetIp && _ipToMac.TryGetValue(senderIp, out var knownMac) && knownMac != senderMac)
             {
                 FireAlert(senderMac, senderIp, knownMac, senderMac, "GratuitousArp", 1);
             }
 
-            // MAC conflict: known MAC for this IP differs
             if (_ipToMac.TryGetValue(senderIp, out var previousMac) && previousMac != senderMac)
             {
                 FireAlert(senderMac, senderIp, previousMac, senderMac, "MacConflict", 1);
@@ -129,8 +123,6 @@ public sealed class ArpSpoofingDetector(IServiceScopeFactory scopeFactory) : IAr
         AlertDetected?.Invoke(this, new ArpSpoofingAlertEventArgs(alert));
     }
 
-    // Each write gets its own scope/DbContext: AppDbContext is not thread-safe and these alerts are
-    // raised from SharpPcap capture-callback threads. Exceptions are observed (not unobserved).
     private async Task PersistAsync(ArpSpoofingAlert alert)
     {
         try

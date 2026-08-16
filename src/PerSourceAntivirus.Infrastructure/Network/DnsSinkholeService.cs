@@ -22,9 +22,6 @@ public sealed class DnsSinkholeService(IDomainBlocklist domainBlocklist) : IDnsS
     {
         _running = true;
 
-        // Primary mode: bind a local UDP listener on 127.0.0.1:53 (requires admin).
-        // This is a true DNS proxy — no race condition, no Npcap dependency.
-        // Falls back to SharpPcap promiscuous-capture mode if port 53 bind fails.
         if (await TryStartLocalProxyAsync(ct))
             return;
 
@@ -33,9 +30,6 @@ public sealed class DnsSinkholeService(IDomainBlocklist domainBlocklist) : IDnsS
 
     public void Stop() => _running = false;
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // Mode 1: Local UDP DNS proxy on 127.0.0.1:53
-    // ──────────────────────────────────────────────────────────────────────────
 
     private async Task<bool> TryStartLocalProxyAsync(CancellationToken ct)
     {
@@ -47,7 +41,7 @@ public sealed class DnsSinkholeService(IDomainBlocklist domainBlocklist) : IDnsS
         catch
         {
             listener?.Dispose();
-            return false; // port 53 not available — try SharpPcap
+            return false;
         }
 
         try
@@ -82,7 +76,6 @@ public sealed class DnsSinkholeService(IDomainBlocklist domainBlocklist) : IDnsS
     {
         if (query.Length < 12) return;
 
-        // Only handle DNS queries (QR bit = 0)
         if ((query[2] & 0x80) != 0) return;
 
         var domain = ParseDnsName(query, 12);
@@ -90,7 +83,6 @@ public sealed class DnsSinkholeService(IDomainBlocklist domainBlocklist) : IDnsS
 
         if (domainBlocklist.IsSuspiciousDomain(domain, out _))
         {
-            // Return sinkhole response pointing to 127.0.0.1
             var txId = (ushort)((query[0] << 8) | query[1]);
             var response = BuildSinkholeResponse(txId, domain);
             try { listener.Send(response, response.Length, client); } catch { }
@@ -98,7 +90,6 @@ public sealed class DnsSinkholeService(IDomainBlocklist domainBlocklist) : IDnsS
             return;
         }
 
-        // Forward clean query to upstream DNS and relay response
         try
         {
             using var upstream = new UdpClient();
@@ -112,9 +103,6 @@ public sealed class DnsSinkholeService(IDomainBlocklist domainBlocklist) : IDnsS
         catch { }
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // Mode 2: SharpPcap promiscuous capture (fallback — requires Npcap)
-    // ──────────────────────────────────────────────────────────────────────────
 
     private async Task StartSharpPcapModeAsync(string? deviceName, CancellationToken ct)
     {
@@ -172,9 +160,6 @@ public sealed class DnsSinkholeService(IDomainBlocklist domainBlocklist) : IDnsS
         catch { }
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // Shared helpers
-    // ──────────────────────────────────────────────────────────────────────────
 
     private static byte[] BuildSinkholeResponse(ushort txId, string domain)
     {
@@ -197,14 +182,12 @@ public sealed class DnsSinkholeService(IDomainBlocklist domainBlocklist) : IDnsS
 
     private static void WriteDnsResponse(BinaryWriter bw, ushort txId, string domain)
     {
-        // Header
         bw.Write((byte)(txId >> 8)); bw.Write((byte)(txId & 0xFF));
-        bw.Write((byte)0x81); bw.Write((byte)0x80); // QR=1, RD=1, RA=1, NOERROR
-        bw.Write((byte)0x00); bw.Write((byte)0x01); // QDCOUNT=1
-        bw.Write((byte)0x00); bw.Write((byte)0x01); // ANCOUNT=1
-        bw.Write((byte)0x00); bw.Write((byte)0x00); // NSCOUNT=0
-        bw.Write((byte)0x00); bw.Write((byte)0x00); // ARCOUNT=0
-        // Question
+        bw.Write((byte)0x81); bw.Write((byte)0x80);
+        bw.Write((byte)0x00); bw.Write((byte)0x01);
+        bw.Write((byte)0x00); bw.Write((byte)0x01);
+        bw.Write((byte)0x00); bw.Write((byte)0x00);
+        bw.Write((byte)0x00); bw.Write((byte)0x00);
         foreach (var label in domain.Split('.'))
         {
             var lb = Encoding.ASCII.GetBytes(label);
@@ -212,15 +195,14 @@ public sealed class DnsSinkholeService(IDomainBlocklist domainBlocklist) : IDnsS
             bw.Write(lb);
         }
         bw.Write((byte)0x00);
-        bw.Write((byte)0x00); bw.Write((byte)0x01); // QTYPE  A
-        bw.Write((byte)0x00); bw.Write((byte)0x01); // QCLASS IN
-        // Answer — pointer to question name
+        bw.Write((byte)0x00); bw.Write((byte)0x01);
+        bw.Write((byte)0x00); bw.Write((byte)0x01);
         bw.Write((byte)0xC0); bw.Write((byte)0x0C);
-        bw.Write((byte)0x00); bw.Write((byte)0x01); // TYPE  A
-        bw.Write((byte)0x00); bw.Write((byte)0x01); // CLASS IN
-        bw.Write((byte)0x00); bw.Write((byte)0x00); bw.Write((byte)0x00); bw.Write((byte)0x3C); // TTL 60
-        bw.Write((byte)0x00); bw.Write((byte)0x04); // RDLENGTH 4
-        bw.Write((byte)127); bw.Write((byte)0); bw.Write((byte)0); bw.Write((byte)1); // 127.0.0.1
+        bw.Write((byte)0x00); bw.Write((byte)0x01);
+        bw.Write((byte)0x00); bw.Write((byte)0x01);
+        bw.Write((byte)0x00); bw.Write((byte)0x00); bw.Write((byte)0x00); bw.Write((byte)0x3C);
+        bw.Write((byte)0x00); bw.Write((byte)0x04);
+        bw.Write((byte)127); bw.Write((byte)0); bw.Write((byte)0); bw.Write((byte)1);
     }
 
     private static string ParseDnsName(byte[] data, int offset)
