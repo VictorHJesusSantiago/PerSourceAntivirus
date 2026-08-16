@@ -7,8 +7,6 @@ using SysProcess = System.Diagnostics.Process;
 
 namespace PerSourceAntivirus.Infrastructure.Signing;
 
-// Flags processes whose main executable is unsigned (or signed but untrusted) and running
-// from a location commonly abused for dropped/downloaded malware.
 [SupportedOSPlatform("windows")]
 public sealed class UnsignedBinaryDetector : IUnsignedBinaryDetector
 {
@@ -68,7 +66,6 @@ public sealed class UnsignedBinaryDetector : IUnsignedBinaryDetector
         try { processes = SysProcess.GetProcesses(); }
         catch (Exception) { return; }
 
-        // Resolved once per sweep, not per process — see DetectorScanScope.ResolveDiagnostics.
         var diagnostics = Diagnostics.DetectorScanScope.ResolveDiagnostics(_scopeFactory);
 
         foreach (var proc in processes)
@@ -126,8 +123,6 @@ public sealed class UnsignedBinaryDetector : IUnsignedBinaryDetector
         AlertDetected?.Invoke(this, new UnsignedBinaryAlertEventArgs(alert));
     }
 
-    // Location matching lives in ModuleLocationHeuristics so it is unit testable; only the
-    // OS-specific folder discovery stays here.
     private static bool IsSuspiciousLocation(string filePath)
         => Detection.Heuristics.ModuleLocationHeuristics.IsSuspiciousExecutableLocation(
             filePath, SuspiciousDirFragments);

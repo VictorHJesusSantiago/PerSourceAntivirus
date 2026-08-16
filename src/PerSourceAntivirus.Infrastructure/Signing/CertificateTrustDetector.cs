@@ -7,8 +7,6 @@ using SysProcess = System.Diagnostics.Process;
 
 namespace PerSourceAntivirus.Infrastructure.Signing;
 
-// Watches running processes and flags any whose signing certificate thumbprint is on the
-// administrator-maintained blacklist (e.g. a leaked/abused code-signing cert).
 [SupportedOSPlatform("windows")]
 public sealed class CertificateTrustDetector : ICertificateTrustDetector
 {
@@ -64,7 +62,6 @@ public sealed class CertificateTrustDetector : ICertificateTrustDetector
         try { processes = SysProcess.GetProcesses(); }
         catch (Exception) { return; }
 
-        // Resolved once per sweep, not per process — see DetectorScanScope.ResolveDiagnostics.
         var diagnostics = Diagnostics.DetectorScanScope.ResolveDiagnostics(_scopeFactory);
 
         foreach (var proc in processes)

@@ -4,8 +4,6 @@ using PerSourceAntivirus.Domain.Entities;
 
 namespace PerSourceAntivirus.Infrastructure.Signing;
 
-// Facade over ICertificateTrustEntryRepository — creates its own scope per call so it is
-// safe to inject into singleton detectors (AppDbContext is not thread-safe).
 public sealed class CertificateTrustListService(IServiceScopeFactory scopeFactory) : ICertificateTrustListService
 {
     public async Task<CertificateTrustEntry?> FindByThumbprintAsync(string thumbprint, CancellationToken ct = default)
