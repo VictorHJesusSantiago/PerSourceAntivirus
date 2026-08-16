@@ -3,13 +3,6 @@ using PerSourceAntivirus.Domain.Entities;
 
 namespace PerSourceAntivirus.Infrastructure.Persistence;
 
-// Scanned files, YARA/PE/script analysis, network + process events, MBR and ransomware.
-//
-// [ADR-002] Split out of AppDbContext.OnModelCreating, which had grown to ~1,120 lines
-// configuring 117 entities in one method. Kept as partial methods grouped by area rather
-// than 117 separate IEntityTypeConfiguration<T> files: one-property-each classes would
-// trade a God Class for 117 Lazy Elements. Configuration order is unchanged, so the
-// generated model — and therefore the migration history — is byte-for-byte identical.
 public partial class AppDbContext
 {
     private static void ConfigureScanningEntities(ModelBuilder modelBuilder)
