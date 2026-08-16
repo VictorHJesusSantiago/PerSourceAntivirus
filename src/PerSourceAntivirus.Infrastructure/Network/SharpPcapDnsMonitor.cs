@@ -72,7 +72,6 @@ public class SharpPcapDnsMonitor(IDomainBlocklist domainBlocklist) : IDnsMonitor
     {
         if (payload is null || payload.Length < 13) return (null, "");
 
-        // Bit 15 of flags = QR: 0 = query, 1 = response.
         var flags = (ushort)((payload[2] << 8) | payload[3]);
         if ((flags & 0x8000) != 0) return (null, "");
 
@@ -85,7 +84,7 @@ public class SharpPcapDnsMonitor(IDomainBlocklist domainBlocklist) : IDnsMonitor
         {
             var len = payload[i++];
             if (len == 0) break;
-            if ((len & 0xC0) == 0xC0) { i++; break; } // compression pointer
+            if ((len & 0xC0) == 0xC0) { i++; break; }
             if (i + len > payload.Length) return (null, "");
             labels.Add(Encoding.ASCII.GetString(payload, i, len));
             i += len;

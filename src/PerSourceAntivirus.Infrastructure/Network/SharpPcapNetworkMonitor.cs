@@ -85,7 +85,6 @@ public class SharpPcapNetworkMonitor : INetworkMonitor
         device.OnPacketArrival += OnPacketArrival;
         device.StartCapture();
 
-        // Complete the channel after duration so ReadAllAsync returns naturally without throwing.
         using var timeoutCts = new CancellationTokenSource(duration);
         timeoutCts.Token.Register(() => channel.Writer.TryComplete());
         cancellationToken.Register(() => channel.Writer.TryComplete());

@@ -18,20 +18,15 @@ public sealed class SharpPcapIdsDetector(IServiceScopeFactory scopeFactory) : IN
 
     public event EventHandler<NetworkIdsAlertEventArgs>? AlertDetected;
 
-    // EternalBlue: SMBv1 TRANS2 exploit pattern at start of SMB payload
-    private static readonly byte[] PatternEternalBlue = [0xFF, 0x53, 0x4D, 0x42]; // \xFF SMB signature
+    private static readonly byte[] PatternEternalBlue = [0xFF, 0x53, 0x4D, 0x42];
 
-    // Log4Shell: jndi: prefix in HTTP payload (ASCII)
     private static readonly byte[] PatternLog4Shell = Encoding.ASCII.GetBytes("${jndi:");
 
-    // Log4Shell variant: jndi:ldap (lowercased check done separately)
     private static readonly byte[] PatternLog4ShellLdap = Encoding.ASCII.GetBytes("jndi:ldap://");
 
-    // Heartbleed: TLS heartbeat record type 0x18
     private const byte TlsHeartbeatType = 0x18;
 
-    // BlueKeep: TPKT + COTP connection request cookie
-    private static readonly byte[] PatternBlueKeep = [0x03, 0x00]; // TPKT header
+    private static readonly byte[] PatternBlueKeep = [0x03, 0x00];
 
     public async Task StartMonitoringAsync(string? deviceName, CancellationToken ct)
     {
@@ -90,15 +85,13 @@ public sealed class SharpPcapIdsDetector(IServiceScopeFactory scopeFactory) : IN
         if (tcp.DestinationPort != 445 && tcp.SourcePort != 445) return;
         if (payload.Length < 8) return;
 
-        // Look for SMB header signature \xFF SMB or SMBv2 \xFE SMB
         for (int i = 0; i <= payload.Length - 4; i++)
         {
             if ((payload[i] == 0xFF || payload[i] == 0xFE) &&
                 payload[i + 1] == 0x53 && payload[i + 2] == 0x4D && payload[i + 3] == 0x42)
             {
-                // Check for suspicious SMB command (0x25 = TRANS2, exploit indicator)
                 bool suspicious = payload.Length > i + 4 && payload[i + 4] == 0x25;
-                if (!suspicious && payload[i] == 0xFF) suspicious = true; // SMBv1 at all is flagged
+                if (!suspicious && payload[i] == 0xFF) suspicious = true;
 
                 if (suspicious)
                 {
@@ -145,12 +138,8 @@ public sealed class SharpPcapIdsDetector(IServiceScopeFactory scopeFactory) : IN
         if (tcp.DestinationPort != 443 && tcp.SourcePort != 443) return;
         if (payload.Length < 5) return;
 
-        // TLS record layer: ContentType(1) + Version(2) + Length(2) + ...
-        // Heartbeat type = 0x18
         if (payload[0] == TlsHeartbeatType && payload.Length >= 7)
         {
-            // Heartbeat message: Type(1) + Length(2)
-            // Heartbleed: payload length > 16384 bytes (0x4000)
             int heartbeatPayloadLength = (payload[5] << 8) | payload[6];
             if (heartbeatPayloadLength > 16384)
             {
@@ -168,11 +157,8 @@ public sealed class SharpPcapIdsDetector(IServiceScopeFactory scopeFactory) : IN
         if (tcp.DestinationPort != 3389 && tcp.SourcePort != 3389) return;
         if (payload.Length < 11) return;
 
-        // TPKT: 0x03 0x00 <length_hi> <length_lo>
-        // COTP CR (Connection Request): 0xE0
         if (payload[0] == 0x03 && payload[1] == 0x00 && payload.Length > 4 && payload[4] == 0xE0)
         {
-            // Check for mstshash cookie (BlueKeep pre-auth exploit signature)
             var payloadStr = Encoding.ASCII.GetString(payload);
             if (payloadStr.Contains("Microsof") || payloadStr.Contains("mstshash="))
             {
@@ -215,7 +201,6 @@ public sealed class SharpPcapIdsDetector(IServiceScopeFactory scopeFactory) : IN
         AlertDetected?.Invoke(this, new NetworkIdsAlertEventArgs(alert));
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
     private async Task PersistAsync(NetworkIntrusionAlert alert)
     {
         try
