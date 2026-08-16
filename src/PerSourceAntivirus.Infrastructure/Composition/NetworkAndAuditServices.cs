@@ -53,14 +53,10 @@ using PerSourceAntivirus.Infrastructure.Composition;
 
 namespace PerSourceAntivirus.Infrastructure;
 
-// Phase 15-17 network/kernel protections, privacy, security auditing and investigation.
-// Extracted from the former ~580-line AddInfrastructureServices (ADR-002). Registration
-// order within and across modules is preserved exactly as it was.
 internal static class NetworkAndAuditServices
 {
     public static IServiceCollection AddNetworkAndAuditServices(this IServiceCollection services, IConfiguration configuration, InfrastructureBuildContext ctx)
     {
-        // Phase 15 â€” Network security + kernel protections
         services.AddSingleton<INetworkIdsDetector, SharpPcapIdsDetector>();
         services.AddScoped<INetworkIdsAlertRepository, NetworkIntrusionAlertRepository>();
         services.AddSingleton<IArpSpoofingDetector, ArpSpoofingDetector>();
@@ -75,7 +71,6 @@ internal static class NetworkAndAuditServices
         services.AddSingleton<IDnsSinkhole, DnsSinkholeService>();
         services.AddSingleton<INdisInspectionService, NdisInspectionService>();
 
-        // Phase 16 â€” Network detection (items 36â€“40)
         services.AddSingleton<IPortScanDetector, PortScanDetector>();
         services.AddScoped<IPortScanAlertRepository, PortScanAlertRepository>();
         services.AddSingleton<ISmbLateralMovementDetector, SmbLateralMovementDetector>();
@@ -86,7 +81,6 @@ internal static class NetworkAndAuditServices
         services.AddSingleton<IWpadAbuseDetector, WpadAbuseDetector>();
         services.AddScoped<IWpadAbuseAlertRepository, WpadAbuseAlertRepository>();
 
-        // Phase 16 â€” Ransomware prevention (items 41â€“43)
         services.AddSingleton<IVssRollbackService, PerSourceAntivirus.Infrastructure.Ransomware.VssRollbackService>();
         services.AddScoped<IVssSnapshotRepository, PerSourceAntivirus.Infrastructure.Ransomware.VssSnapshotRepository>();
         services.AddSingleton<IScreenLockerDetector, PerSourceAntivirus.Infrastructure.Privacy.ScreenLockerDetector>();
@@ -94,7 +88,6 @@ internal static class NetworkAndAuditServices
         services.AddSingleton<IMbrRealtimeProtection, PerSourceAntivirus.Infrastructure.Kernel.MbrRealtimeProtectionService>();
         services.AddScoped<IMbrWriteAttemptRepository, PerSourceAntivirus.Infrastructure.Kernel.MbrWriteAttemptRepository>();
 
-        // Phase 16 â€” Privacy (items 44â€“48)
         services.AddSingleton<IClipboardHijackDetector, PerSourceAntivirus.Infrastructure.Privacy.ClipboardHijackDetector>();
         services.AddScoped<IClipboardHijackAlertRepository, PerSourceAntivirus.Infrastructure.Privacy.ClipboardHijackAlertRepository>();
         services.AddSingleton<IWebcamAccessMonitor, PerSourceAntivirus.Infrastructure.Privacy.WebcamAccessMonitor>();
@@ -104,7 +97,6 @@ internal static class NetworkAndAuditServices
         services.AddSingleton<IScreenCaptureDetector, PerSourceAntivirus.Infrastructure.Privacy.ScreenCaptureDetector>();
         services.AddScoped<IScreenCaptureAlertRepository, PerSourceAntivirus.Infrastructure.Privacy.ScreenCaptureAlertRepository>();
 
-        // Phase 16 â€” Scanners + audit (items 49â€“55)
         services.AddSingleton<ISensitiveDataScanner, PerSourceAntivirus.Infrastructure.Security.SensitiveDataScanner>();
         services.AddScoped<ISensitiveDataFindingRepository, PerSourceAntivirus.Infrastructure.Security.SensitiveDataFindingRepository>();
         services.AddSingleton<IInstalledSoftwareScanner, PerSourceAntivirus.Infrastructure.Security.InstalledSoftwareScanner>();
@@ -120,7 +112,6 @@ internal static class NetworkAndAuditServices
         services.AddSingleton<IOpenPortScanner, PerSourceAntivirus.Infrastructure.Security.OpenPortScanner>();
         services.AddScoped<IOpenPortInfoRepository, PerSourceAntivirus.Infrastructure.Security.OpenPortInfoRepository>();
 
-        // Phase 17 â€” Event history + investigation + threat intel (items 56â€“62)
         services.AddScoped<IProcessCreationEventRepository, PerSourceAntivirus.Infrastructure.Etw.ProcessCreationEventRepository>();
         services.AddScoped<IFileActivityEventRepository, PerSourceAntivirus.Infrastructure.Etw.FileActivityEventRepository>();
         services.AddScoped<IRegistryActivityEventRepository, PerSourceAntivirus.Infrastructure.Etw.RegistryActivityEventRepository>();
@@ -140,7 +131,6 @@ internal static class NetworkAndAuditServices
         services.AddScoped<IIncidentRepository, PerSourceAntivirus.Infrastructure.Investigation.IncidentRepository>();
         services.AddScoped<IAlertTriageService, PerSourceAntivirus.Infrastructure.Investigation.AlertTriageService>();
 
-        // Phase 17 â€” Process mitigation + security enforcement (items 70â€“74)
         services.AddSingleton<IProcessMitigationService, PerSourceAntivirus.Infrastructure.Security.ProcessMitigationService>();
         services.AddScoped<ICfgViolationAlertRepository, PerSourceAntivirus.Infrastructure.Security.CfgViolationAlertRepository>();
         services.AddSingleton<IAmsiBypassDetector, PerSourceAntivirus.Infrastructure.Security.AmsiBypassDetector>();

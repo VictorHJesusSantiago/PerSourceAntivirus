@@ -53,20 +53,15 @@ using PerSourceAntivirus.Infrastructure.Composition;
 
 namespace PerSourceAntivirus.Infrastructure;
 
-// Phase 20-21 observability, threat intel aggregation and response/remediation.
-// Extracted from the former ~580-line AddInfrastructureServices (ADR-002). Registration
-// order within and across modules is preserved exactly as it was.
 internal static class ObservabilityAndResponseServices
 {
     public static IServiceCollection AddObservabilityAndResponseServices(this IServiceCollection services, IConfiguration configuration, InfrastructureBuildContext ctx)
     {
-        // Phase 20 — Observability: Prometheus metrics, multi-agent CEF ingestion, audit hash chain
         services.AddSingleton<IMetricsExporter, PerSourceAntivirus.Infrastructure.Reporting.PrometheusMetricsExporter>();
         services.AddSingleton<ISyslogCefIngestionService, PerSourceAntivirus.Infrastructure.Siem.SyslogCefIngestionService>();
         services.AddScoped<IRemoteAgentEventRepository, PerSourceAntivirus.Infrastructure.Siem.RemoteAgentEventRepository>();
         services.AddScoped<IAuditLogChainService, PerSourceAntivirus.Infrastructure.Security.AuditLogChainService>();
 
-        // Phase 21 — Threat intel: additional open feeds (OTX / ThreatFox / PhishTank)
         var otxApiKey = configuration["ThreatIntel:OtxApiKey"] ?? string.Empty;
         var threatIntelCacheDir = Path.Combine(AppContext.BaseDirectory, "data", "threat-intel-cache");
         services.AddSingleton<IThreatFeedUpdater>(sp => new PerSourceAntivirus.Infrastructure.ThreatFeeds.ThreatFoxUpdater(
@@ -84,11 +79,9 @@ internal static class ObservabilityAndResponseServices
             Path.Combine(threatIntelCacheDir, "phishtank.cache.json"),
             sp.GetRequiredService<IHttpClientFactory>()));
 
-        // Phase 21 — Threat intel: aggregated IP/domain reputation scoring + STIX export
         services.AddSingleton<IIpDomainReputationScoringService, PerSourceAntivirus.Infrastructure.Reputation.IpDomainReputationScoringService>();
         services.AddScoped<IStixIocExporter, PerSourceAntivirus.Infrastructure.ThreatIntel.StixIocExporter>();
 
-        // Phase 21 — Response/remediation: kill-switch, sample submission, playbooks, System Restore
         services.AddSingleton<IHostIsolationService, PerSourceAntivirus.Infrastructure.Network.HostIsolationService>();
         services.AddScoped<IHostIsolationEventRepository, PerSourceAntivirus.Infrastructure.Network.HostIsolationEventRepository>();
 
@@ -104,14 +97,8 @@ internal static class ObservabilityAndResponseServices
 
         services.AddSingleton<ISystemRestoreService, PerSourceAntivirus.Infrastructure.SystemIntegration.SystemRestoreService>();
 
-        // [ADR-001] Detector health registry. Singleton so counters accumulate across the whole
-        // process lifetime; consumed by the detectors, the hosted service and /metrics.
         services.AddSingleton<IDetectorDiagnostics, PerSourceAntivirus.Infrastructure.Diagnostics.DetectorDiagnostics>();
 
-        // [AUDIT FIX — CRITICAL] Composition root for the 42 real-time detectors that were
-        // registered but never started (see RealtimeProtectionHostedService for details).
-        // Gated by the same RealtimeProtection:Enabled flag the GUI Settings page already
-        // exposes — previously read by the GUI but never actually wired to anything.
         services.AddHostedService<RealtimeProtectionHostedService>();
 
         return services;

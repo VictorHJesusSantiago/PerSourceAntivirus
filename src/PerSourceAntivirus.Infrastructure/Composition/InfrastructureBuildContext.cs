@@ -5,15 +5,6 @@ using PerSourceAntivirus.Infrastructure.Yara;
 
 namespace PerSourceAntivirus.Infrastructure.Composition;
 
-// Shared state for the registration modules (ADR-002).
-//
-// AddInfrastructureServices used to be one ~580-line method partly *because* several sections
-// depend on the same resolved paths and concrete instances (the blocklist providers, the YARA
-// scanner, the local hash reputation store). Splitting the method naively would have duplicated
-// that computation — or worse, created a second StaticBlocklistProvider so that a feed updater
-// reloaded a different instance than the one the engine reads from.
-//
-// Computing them exactly once here keeps the modules independent without changing behaviour.
 internal sealed class InfrastructureBuildContext
 {
     public required string YaraRulesDirectory { get; init; }
@@ -56,8 +47,6 @@ internal sealed class InfrastructureBuildContext
         };
     }
 
-    // Config values may be absolute or relative; relative ones are resolved against the app
-    // directory so behaviour does not depend on the process's current working directory.
     internal static string ResolvePath(string? configured, string fallback)
     {
         var value = string.IsNullOrWhiteSpace(configured) ? fallback : configured;
