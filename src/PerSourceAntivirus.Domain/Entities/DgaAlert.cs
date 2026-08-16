@@ -7,7 +7,7 @@ public class DgaAlert
     public double EntropyScore { get; set; }
     public double ConsonantVowelRatio { get; set; }
     public int NxdomainStreak { get; set; }
-    public double Probability { get; set; }  // 0.0–1.0 DGA likelihood
+    public double Probability { get; set; }
     public bool IsDga { get; set; }
     public DateTime DetectedAtUtc { get; set; }
 }

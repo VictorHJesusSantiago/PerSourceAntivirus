@@ -8,7 +8,7 @@ public class DnsTunnelingAlert
     public int QueriesInWindow { get; set; }
     public double AverageLabelEntropy { get; set; }
     public double AverageQueryLength { get; set; }
-    public required string DetectionReason { get; set; } // HighEntropyLabels | HighQueryVolume | LongQueryNames
+    public required string DetectionReason { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }
 }
