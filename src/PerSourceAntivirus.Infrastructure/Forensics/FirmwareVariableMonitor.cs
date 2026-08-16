@@ -35,8 +35,6 @@ public sealed class FirmwareVariableMonitor(IServiceScopeFactory scopeFactory) :
 
     public async Task<IReadOnlyList<FirmwareVariableSnapshot>> ScanAsync(CancellationToken ct = default)
     {
-        // [AUDIT FIX — CRITICAL] Was a singleton capturing the scoped repository; each access now
-        // gets its own scope/DbContext.
         IReadOnlyList<FirmwareVariableSnapshot> baseline;
         using (var scope = scopeFactory.CreateScope())
         {

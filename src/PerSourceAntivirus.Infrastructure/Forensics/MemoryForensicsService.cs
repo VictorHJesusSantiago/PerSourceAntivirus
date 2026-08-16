@@ -135,7 +135,6 @@ public sealed partial class MemoryForensicsService(IServiceScopeFactory scopeFac
         }, ct);
     }
 
-    // [AUDIT FIX — CRITICAL] Was a singleton capturing the scoped IMemoryDumpResultRepository.
     public async Task SaveResultAsync(MemoryDumpResult result, CancellationToken ct = default)
     {
         using var scope = scopeFactory.CreateScope();

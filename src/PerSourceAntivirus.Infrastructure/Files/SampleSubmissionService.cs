@@ -23,7 +23,6 @@ public sealed class SampleSubmissionService(
 
         using (var archive = ZipFile.Open(archivePath, ZipArchiveMode.Create))
         {
-            // .bin extension inside the archive to avoid the sample auto-executing if extracted.
             archive.CreateEntryFromFile(quarantinedFilePath, Path.GetFileName(quarantinedFilePath) + ".bin");
         }
 
