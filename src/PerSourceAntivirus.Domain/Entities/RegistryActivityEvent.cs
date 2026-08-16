@@ -7,7 +7,7 @@ public class RegistryActivityEvent
     public required string ProcessName { get; set; }
     public required string KeyPath { get; set; }
     public required string ValueName { get; set; }
-    public required string Operation { get; set; } // Create/Set/Delete
+    public required string Operation { get; set; }
     public required string OldData { get; set; }
     public required string NewData { get; set; }
     public bool IsSuspicious { get; set; }
