@@ -10,7 +10,6 @@ public sealed class ExplorerContextMenuInstaller : IExplorerContextMenuInstaller
     private const string VerbName = "PerSourceAntivirusScan";
     private const string MenuText = "Escanear com PerSourceAntivirus";
 
-    // Roots that get the "Scan with..." verb: individual files and folders.
     private static readonly string[] ShellRoots = { @"*\shell", @"Directory\shell" };
 
     public Task InstallAsync(string cliExecutablePath, CancellationToken ct = default)

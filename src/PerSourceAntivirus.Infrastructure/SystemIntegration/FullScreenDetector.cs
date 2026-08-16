@@ -50,7 +50,7 @@ public sealed class FullScreenDetector : IFullScreenDetector
         var shellWindow = GetShellWindow();
         var desktopWindow = GetDesktopWindow();
         if (hWnd == shellWindow || hWnd == desktopWindow) return false;
-        if (GetWindowTextLength(hWnd) == 0) return false; // no titled window (e.g. taskbar) in foreground
+        if (GetWindowTextLength(hWnd) == 0) return false;
 
         if (!GetWindowRect(hWnd, out var windowRect)) return false;
 

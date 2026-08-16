@@ -25,7 +25,6 @@ public sealed class LsbSteganographyDetector : ISteganographyDetector
             int totalPixels = width * height;
             bool largeImage = totalPixels > 4000 * 4000;
 
-            // Collect R, G, B channel values (sample every 4th pixel for large images)
             int step = largeImage ? 4 : 1;
             int sampleCount = 0;
 
@@ -49,7 +48,6 @@ public sealed class LsbSteganographyDetector : ISteganographyDetector
                 }
             });
 
-            // --- LSB Chi-Square test on R channel ---
             int count0 = 0, count1 = 0;
             foreach (var r in rValues)
             {
@@ -64,7 +62,6 @@ public sealed class LsbSteganographyDetector : ISteganographyDetector
             }
             double chiScore = 1.0 - Math.Exp(-chi / 100.0);
 
-            // --- Histogram pair analysis on R channel ---
             var rHist = new int[256];
             foreach (var r in rValues) rHist[r]++;
 
@@ -80,20 +77,16 @@ public sealed class LsbSteganographyDetector : ISteganographyDetector
             }
             double histogramAnomalyScore = pairCount > 0 ? pairAnomalySum / pairCount : 1.0;
 
-            // --- Channel entropy on R channel ---
             double channelEntropy = ComputeEntropy(rHist, rValues.Count);
 
-            // --- Determine suspicion ---
             var suspicionReasons = new List<string>();
 
             if (chiScore > 0.3)
                 suspicionReasons.Add("HighChiSquareDeviation");
 
-            // Suspicious: anomaly score < 0.05 (pairs too equal) AND image has > 1000 pixels
             if (histogramAnomalyScore < 0.05 && sampleCount > 1000)
                 suspicionReasons.Add("EqualizedLsbPairs");
 
-            // Channel entropy in range 7.5–8.0 = very uniform (suspicious for steganography)
             if (channelEntropy >= 7.5 && channelEntropy <= 8.0)
                 suspicionReasons.Add("UniformChannelEntropy");
 
