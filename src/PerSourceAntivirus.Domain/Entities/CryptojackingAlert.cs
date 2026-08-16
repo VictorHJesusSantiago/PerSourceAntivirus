@@ -8,7 +8,7 @@ public class CryptojackingAlert
     public double CpuPercent { get; set; }
     public string? RemoteAddress { get; set; }
     public int RemotePort { get; set; }
-    public required string DetectionReason { get; set; } // SustainedHighCpu | MiningPoolPort | MiningPoolPortAndHighCpu
+    public required string DetectionReason { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }
 }

@@ -6,7 +6,7 @@ public class CustomSignatureMatch
     public required string FilePath { get; set; }
     public required string FileHashSha256 { get; set; }
     public required string SignatureName { get; set; }
-    public required string MatchType { get; set; } // Hash | Wildcard
+    public required string MatchType { get; set; }
     public int Severity { get; set; }
     public DateTime DetectedAtUtc { get; set; }
 }
