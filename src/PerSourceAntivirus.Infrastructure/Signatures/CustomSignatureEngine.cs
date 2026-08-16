@@ -6,7 +6,7 @@ namespace PerSourceAntivirus.Infrastructure.Signatures;
 
 public sealed class CustomSignatureEngine : ICustomSignatureEngine
 {
-    private const long MaxScannableBytes = 64 * 1024 * 1024; // 64 MB — wildcard scan is O(n*m) naive search
+    private const long MaxScannableBytes = 64 * 1024 * 1024;
     private readonly string _rulesFile;
     private readonly object _lock = new();
     private List<CustomSignatureRule> _rules = new();
@@ -37,7 +37,7 @@ public sealed class CustomSignatureEngine : ICustomSignatureEngine
                 if (parts[0].Equals("HASH", StringComparison.OrdinalIgnoreCase))
                 {
                     var hash = parts[2].Trim();
-                    if (hash.Length == 64) // SHA-256 hex length
+                    if (hash.Length == 64)
                         rules.Add(new CustomSignatureRule(parts[1], CustomSignatureRuleType.Hash, hash.ToLowerInvariant(), severity));
                 }
                 else if (parts[0].Equals("WILDCARD", StringComparison.OrdinalIgnoreCase))
@@ -108,7 +108,6 @@ public sealed class CustomSignatureEngine : ICustomSignatureEngine
         return matches;
     }
 
-    // "4D5A??904500" -> pairs of hex nibbles; "??" means wildcard byte (null = wildcard).
     internal static bool TryParseWildcardPattern(string hex, out byte?[] pattern)
     {
         pattern = Array.Empty<byte?>();

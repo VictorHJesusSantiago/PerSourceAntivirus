@@ -5,8 +5,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Signing;
 
-// Verifies Authenticode signatures via WinVerifyTrust (trust chain to a trusted root) and,
-// when signed, extracts the leaf certificate subject/thumbprint for reputation checks.
 [SupportedOSPlatform("windows")]
 public sealed class AuthenticodeVerifier : IAuthenticodeVerifier
 {
@@ -62,7 +60,7 @@ public sealed class AuthenticodeVerifier : IAuthenticodeVerifier
         string? thumbprint = null;
         try
         {
-#pragma warning disable SYSLIB0057 // CreateFromSignedFile is the only API that extracts an Authenticode-embedded cert
+#pragma warning disable SYSLIB0057
             using var raw = X509Certificate.CreateFromSignedFile(filePath);
 #pragma warning restore SYSLIB0057
             using var cert = new X509Certificate2(raw);
@@ -71,7 +69,6 @@ public sealed class AuthenticodeVerifier : IAuthenticodeVerifier
         }
         catch
         {
-            // No embedded signature (or unparsable) — treat as unsigned.
             return new AuthenticodeResult(false, false, null, null);
         }
 
