@@ -1,23 +1,15 @@
 namespace PerSourceAntivirus.Infrastructure.Detection.Heuristics;
 
-// Pure decision logic for heap-spray detection, split out of HeapSprayDetector.
-//
-// The detector itself is untestable in CI: it needs OpenProcess/VirtualQueryEx/ReadProcessMemory
-// against live processes and administrator rights. But the P/Invoke layer only *gathers* data —
-// every judgement about whether that data looks like a spray is arithmetic over plain values.
-// Keeping the judgement here makes the part that can actually be wrong verifiable.
 public static class HeapSprayHeuristics
 {
     public const long OneMegabyte = 1_048_576;
     public const long HundredMegabytes = 104_857_600;
 
-    // Sprays fill memory with a repeated NOP-sled/pointer pattern, so sampled pages carry far
     // less entropy than normal heap data. Below ~1.5 bits/byte the region is essentially uniform.
     public const double ExtremeLowEntropyThreshold = 1.5;
     public const double LowEntropyThreshold = 3.0;
 
     // A spray allocates the same chunk size over and over; >50 regions in one 4 KB size bucket
-    // is a pattern normal allocators do not produce.
     public const int UniformSizeBucketThreshold = 50;
 
     public static double CalculateEntropy(ReadOnlySpan<byte> data)
@@ -37,8 +29,6 @@ public static class HeapSprayHeuristics
         return entropy;
     }
 
-    // Returns null when the observed entropy is unremarkable — the caller should then fall back
-    // to the uniform-size check rather than raising an entropy-based alert.
     public static HeapSprayVerdict? EvaluateEntropy(long totalPrivateBytes, double averageEntropy)
     {
         if (totalPrivateBytes < HundredMegabytes) return null;
@@ -53,7 +43,6 @@ public static class HeapSprayHeuristics
     }
 
     // Groups region sizes into 4 KB buckets and reports a spray when any single bucket is
-    // over-represented, regardless of total allocation size.
     public static HeapSprayVerdict? EvaluateUniformSizes(IReadOnlyCollection<long> regionSizes)
     {
         if (regionSizes.Count == 0) return null;
