@@ -53,14 +53,10 @@ using PerSourceAntivirus.Infrastructure.Composition;
 
 namespace PerSourceAntivirus.Infrastructure;
 
-// Phase 13-14 detection engines and exploit-prevention detectors.
-// Extracted from the former ~580-line AddInfrastructureServices (ADR-002). Registration
-// order within and across modules is preserved exactly as it was.
 internal static class DetectionEngineServices
 {
     public static IServiceCollection AddDetectionEngineServices(this IServiceCollection services, IConfiguration configuration, InfrastructureBuildContext ctx)
     {
-        // Phase 13 â€” new detection engines
         services.AddSingleton<ICpuEmulator, X86CpuEmulator>();
         services.AddSingleton<IPackerDetector, PackerDetector>();
         services.AddSingleton<IAmsiProvider, AmsiProviderService>();
@@ -77,7 +73,6 @@ internal static class DetectionEngineServices
         services.AddSingleton<IEmailScanner, MimeKitEmailScanner>();
         services.AddSingleton<ISteganographyDetector, LsbSteganographyDetector>();
 
-        // Phase 14 â€” Advanced exploit prevention
         services.AddSingleton<IProcessHollowingDetector, ProcessHollowingDetector>();
         services.AddScoped<IProcessHollowingAlertRepository, ProcessHollowingAlertRepository>();
         services.AddSingleton<IProcessDoppelgangingDetector, ProcessDoppelgangingDetector>();

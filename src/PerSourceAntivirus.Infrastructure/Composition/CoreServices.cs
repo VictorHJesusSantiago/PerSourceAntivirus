@@ -53,9 +53,6 @@ using PerSourceAntivirus.Infrastructure.Composition;
 
 namespace PerSourceAntivirus.Infrastructure;
 
-// Core repositories, file/PE/script analyzers and scan settings.
-// Extracted from the former ~580-line AddInfrastructureServices (ADR-002). Registration
-// order within and across modules is preserved exactly as it was.
 internal static class CoreServices
 {
     public static IServiceCollection AddCoreServices(this IServiceCollection services, IConfiguration configuration, InfrastructureBuildContext ctx)

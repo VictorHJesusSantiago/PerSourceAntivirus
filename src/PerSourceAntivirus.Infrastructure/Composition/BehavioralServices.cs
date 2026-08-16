@@ -53,14 +53,10 @@ using PerSourceAntivirus.Infrastructure.Composition;
 
 namespace PerSourceAntivirus.Infrastructure;
 
-// Phase 18 behavioral analysis, notifications, reporting, forensics and app whitelisting.
-// Extracted from the former ~580-line AddInfrastructureServices (ADR-002). Registration
-// order within and across modules is preserved exactly as it was.
 internal static class BehavioralServices
 {
     public static IServiceCollection AddBehavioralServices(this IServiceCollection services, IConfiguration configuration, InfrastructureBuildContext ctx)
     {
-        // Phase 18 â€” Behavioral analysis (items 75â€“78)
         services.AddSingleton<IApiCallSequenceAnalyzer, ApiCallSequenceAnalyzer>();
         services.AddScoped<IApiCallSequenceAlertRepository, ApiCallSequenceAlertRepository>();
         services.AddSingleton<IParentChildAnomalyDetector, ParentChildAnomalyDetector>();
@@ -71,30 +67,25 @@ internal static class BehavioralServices
         services.AddScoped<INetworkBehaviorProfileRepository, NetworkBehaviorProfileRepository>();
         services.AddScoped<INetworkBehaviorAlertRepository, NetworkBehaviorAlertRepository>();
 
-        // Phase 18 â€” Notifications + scan profiles (items 80, 84)
         services.AddScoped<INotificationRecordRepository, PerSourceAntivirus.Infrastructure.Notifications.NotificationRecordRepository>();
         services.AddSingleton<INotificationCenter, PerSourceAntivirus.Infrastructure.Notifications.NotificationCenter>();
         services.AddScoped<IScanProfileRepository, PerSourceAntivirus.Infrastructure.Scanning.ScanProfileRepository>();
         services.AddScoped<IScanProfileService, PerSourceAntivirus.Infrastructure.Scanning.ScanProfileService>();
 
-        // Phase 18 â€” Supporting services (items 85â€“86)
         services.AddSingleton<ICpuIdleMonitor, PerSourceAntivirus.Infrastructure.SystemIntegration.CpuIdleMonitor>();
         services.AddSingleton<IGamingModeDetector, PerSourceAntivirus.Infrastructure.SystemIntegration.GamingModeDetector>();
 
-        // Phase 18 â€” Reporting (item 87)
         services.AddScoped<IThreatReportRepository, ThreatReportRepository>();
         services.AddScoped<IReportGenerator, ReportGenerator>();
         services.AddScoped<IAlertAggregatorService, AlertAggregatorService>();
         services.AddScoped<IThreatTrendService, ThreatTrendService>();
 
-        // Phase 18 â€” System integration (items 91â€“95)
         services.AddSingleton<IWindowsEventLogWriter, InfraSystem.WindowsEventLogWriter>();
         services.AddSingleton<IEtwCustomProvider, InfraSystem.EtwCustomProvider>();
         services.AddSingleton<IWmiCustomProvider, InfraSystem.WmiCustomProvider>();
         services.AddSingleton<IAppLockerIntegration, InfraSystem.AppLockerIntegration>();
         services.AddSingleton<IVssBackupService, InfraSystem.VssBackupService>();
 
-        // Phase 18 â€” Forensics (items 96â€“98)
         services.AddScoped<IMemoryDumpResultRepository, MemoryDumpResultRepository>();
         services.AddSingleton<IMemoryForensicsService, MemoryForensicsService>();
         services.AddScoped<IFirmwareVariableSnapshotRepository, FirmwareVariableSnapshotRepository>();
@@ -102,13 +93,11 @@ internal static class BehavioralServices
         services.AddScoped<IHypervisorDetectionResultRepository, HypervisorDetectionResultRepository>();
         services.AddSingleton<IHypervisorDetector, HypervisorDetector>();
 
-        // Phase 18 â€” Security (items 99â€“100)
         services.AddScoped<IKernelPatchGuardAlertRepository, PerSourceAntivirus.Infrastructure.Security.KernelPatchGuardAlertRepository>();
         services.AddSingleton<IKernelPatchGuardMonitor, PerSourceAntivirus.Infrastructure.Security.KernelPatchGuardMonitor>();
         services.AddScoped<ISupplyChainAlertRepository, PerSourceAntivirus.Infrastructure.Security.SupplyChainAlertRepository>();
         services.AddSingleton<ISupplyChainDetector, PerSourceAntivirus.Infrastructure.Security.SupplyChainDetector>();
 
-        // Phase 17 â€” App whitelisting + sandbox + PUA + script sandbox + browser (items 63â€“69)
         services.AddScoped<IAppWhitelistRepository, PerSourceAntivirus.Infrastructure.Security.AppWhitelistRepository>();
         services.AddScoped<IAppWhitelistService, PerSourceAntivirus.Infrastructure.Security.AppWhitelistService>();
         services.AddSingleton<IAppContainerSandboxRunner, PerSourceAntivirus.Infrastructure.Sandbox.AppContainerSandboxRunner>();
