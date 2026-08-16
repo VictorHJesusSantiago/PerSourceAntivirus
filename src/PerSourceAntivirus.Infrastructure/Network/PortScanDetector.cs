@@ -12,7 +12,6 @@ namespace PerSourceAntivirus.Infrastructure.Network;
 [SupportedOSPlatform("windows")]
 public sealed class PortScanDetector(IServiceScopeFactory scopeFactory) : IPortScanDetector
 {
-    // sourceIp -> bag of (port, time)
     private readonly ConcurrentDictionary<string, ConcurrentBag<(int port, DateTime time)>> _portTracker =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTime> _recentAlerts = new(StringComparer.OrdinalIgnoreCase);
@@ -74,7 +73,6 @@ public sealed class PortScanDetector(IServiceScopeFactory scopeFactory) : IPortS
             var bag = _portTracker.GetOrAdd(sourceIp, _ => new ConcurrentBag<(int, DateTime)>());
             bag.Add((destPort, now));
 
-            // Check for scan: distinct ports within the time window
             var windowStart = now.AddSeconds(-WindowSeconds);
             var recentEntries = bag
                 .Where(x => x.time >= windowStart)
@@ -91,7 +89,6 @@ public sealed class PortScanDetector(IServiceScopeFactory scopeFactory) : IPortS
                 FireAlert(sourceIp, distinctPorts, recentEntries.Count, windowMs);
             }
 
-            // Periodically prune stale entries to avoid memory growth
             if (bag.Count > 10000)
                 _portTracker.TryRemove(sourceIp, out _);
         }
@@ -120,7 +117,6 @@ public sealed class PortScanDetector(IServiceScopeFactory scopeFactory) : IPortS
         AlertDetected?.Invoke(this, new PortScanAlertEventArgs(alert));
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
     private async Task PersistAsync(PortScanAlert alert)
     {
         try

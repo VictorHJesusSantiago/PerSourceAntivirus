@@ -17,7 +17,6 @@ public sealed class NdisInspectionService : INdisInspectionService
     {
         try
         {
-            // Check if the NDIS filter service is registered and running
             var keyPath = $@"SYSTEM\CurrentControlSet\Services\{NdisServiceName}";
             using var key = Registry.LocalMachine.OpenSubKey(keyPath);
             if (key is null)
@@ -26,7 +25,6 @@ public sealed class NdisInspectionService : INdisInspectionService
                 return Task.FromResult(false);
             }
 
-            // ImagePath present = driver is installed
             var imagePath = key.GetValue("ImagePath") as string;
             IsDriverLoaded = !string.IsNullOrEmpty(imagePath);
             return Task.FromResult(IsDriverLoaded);

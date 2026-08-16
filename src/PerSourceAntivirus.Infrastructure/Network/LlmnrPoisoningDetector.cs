@@ -13,7 +13,6 @@ namespace PerSourceAntivirus.Infrastructure.Network;
 [SupportedOSPlatform("windows")]
 public sealed class LlmnrPoisoningDetector(IServiceScopeFactory scopeFactory) : ILlmnrPoisoningDetector
 {
-    // query name → (querierIp, list of (responderIp, mac, seenAt))
     private readonly ConcurrentDictionary<string, (string querierIp, List<(string ip, string mac, DateTime seen)> responders)> _queryMap = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, DateTime> _recentAlerts = new();
     private volatile bool _running;
@@ -81,7 +80,7 @@ public sealed class LlmnrPoisoningDetector(IServiceScopeFactory scopeFactory) : 
             var payload = udp.PayloadData;
             if (payload.Length < 12) return;
 
-            bool isResponse = (payload[2] & 0x80) != 0; // QR bit
+            bool isResponse = (payload[2] & 0x80) != 0;
             var queryName = ParseDnsName(payload, 12);
             if (string.IsNullOrEmpty(queryName)) return;
 
@@ -89,12 +88,10 @@ public sealed class LlmnrPoisoningDetector(IServiceScopeFactory scopeFactory) : 
 
             if (!isResponse)
             {
-                // It's a query — record querier
                 _queryMap[queryName] = (srcIp, []);
             }
             else
             {
-                // It's a response — check if multiple responders
                 if (!_queryMap.TryGetValue(queryName, out var entry)) return;
 
                 var responders = entry.responders;
@@ -106,7 +103,6 @@ public sealed class LlmnrPoisoningDetector(IServiceScopeFactory scopeFactory) : 
 
                     if (responders.Count > 1)
                     {
-                        // Multiple distinct IPs responding to same query = poisoning
                         var spoofed = responders.Last().ip;
                         FireAlert(proto, queryName, entry.querierIp, srcIp, srcMac, spoofed, "MultipleResponders");
                     }
@@ -142,7 +138,6 @@ public sealed class LlmnrPoisoningDetector(IServiceScopeFactory scopeFactory) : 
         AlertDetected?.Invoke(this, new LlmnrPoisoningAlertEventArgs(alert));
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
     private async Task PersistAsync(LlmnrPoisoningAlert alert)
     {
         try

@@ -9,15 +9,12 @@ namespace PerSourceAntivirus.Infrastructure.Network;
 [SupportedOSPlatform("windows")]
 public sealed class ProcessFirewallService : IProcessFirewallService, IDisposable
 {
-    // FWPM_LAYER_ALE_AUTH_CONNECT_V4 / V6
     private static readonly Guid LayerConnectV4 = new("c38d57d1-05a7-4c33-904f-7fbceee60e82");
     private static readonly Guid LayerConnectV6 = new("4a72393b-7b55-493c-b3eb-d9e11cd3f8df");
-    // FWPM_CONDITION_ALE_APP_ID
     private static readonly Guid CondAppId = new("d78e1e87-8644-4ea5-9437-d809ecefc971");
-    // A dedicated sublayer for per-process rules (distinct from WfpBlocker's IP sublayer)
     private static readonly Guid AppFirewallSubLayer = new("7f4a9b1c-2d3e-4f5a-8b6c-9d0e1f2a3b4c");
 
-    private const uint FwpByteBlobType = 4; // FWP_BYTE_BLOB_TYPE
+    private const uint FwpByteBlobType = 4;
     private const uint FwpMatchEqual = 0;
     private const uint FwpEmpty = 0;
     private const uint FwpActionBlock = 0x00000001;
@@ -324,7 +321,7 @@ public sealed class ProcessFirewallService : IProcessFirewallService, IDisposabl
                 Weight = 0x8000
             };
             var hr = FwpmSubLayerAdd0(_engine, &sl, nint.Zero);
-            if (hr != 0 && hr != 0x80320009) // FWP_E_ALREADY_EXISTS
+            if (hr != 0 && hr != 0x80320009)
             {
                 FwpmTransactionAbort0(_engine);
                 throw new InvalidOperationException($"FwpmSubLayerAdd0 failed: 0x{hr:X8}");
