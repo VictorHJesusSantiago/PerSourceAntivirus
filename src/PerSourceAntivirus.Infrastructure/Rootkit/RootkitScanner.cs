@@ -120,7 +120,7 @@ public class RootkitScanner : IRootkitScanner
             {
                 var ptr = new IntPtr(buffer.ToInt64() + offset);
                 var nextOffset = (uint)Marshal.ReadInt32(ptr, 0);
-                var pid = Marshal.ReadIntPtr(ptr, 68).ToInt32(); // UniqueProcessId offset
+                var pid = Marshal.ReadIntPtr(ptr, 68).ToInt32();
                 pids.Add(pid);
                 if (nextOffset == 0) break;
                 offset += nextOffset;
@@ -128,7 +128,6 @@ public class RootkitScanner : IRootkitScanner
         }
         catch
         {
-            // ignore parse errors - return what we have
         }
         finally
         {
@@ -180,7 +179,6 @@ public class RootkitScanner : IRootkitScanner
                 hookType = "JMP [RIP+offset] indirect hook";
             else if (!(bytes[0] == 0x4C && bytes[1] == 0x8B && bytes[2] == 0xD1 && bytes[3] == 0xB8))
             {
-                // Not the expected MOV R10,RCX; MOV EAX,... prologue — suspicious
                 if (bytes[0] == 0x90 || bytes[0] == 0xCC || bytes[0] == 0xEB)
                     hookType = $"Suspicious prologue byte 0x{bytes[0]:X2}";
             }

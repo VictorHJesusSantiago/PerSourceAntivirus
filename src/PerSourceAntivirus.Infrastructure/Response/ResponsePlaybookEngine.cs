@@ -69,7 +69,7 @@ public sealed class ResponsePlaybookEngine(IServiceScopeFactory scopeFactory, st
                 if (context.ProcessId is int pid)
                 {
                     try { SysProcess.GetProcessById(pid).Kill(entireProcessTree: true); }
-                    catch (ArgumentException) { /* already exited */ }
+                    catch (ArgumentException) {  }
                 }
                 break;
 
