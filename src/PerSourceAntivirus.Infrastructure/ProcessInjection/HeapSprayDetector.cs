@@ -53,7 +53,6 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
         _scopeFactory = scopeFactory;
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from scan threads.
     private async Task PersistAsync(HeapSprayAlert alert, CancellationToken ct)
     {
         try
@@ -118,7 +117,6 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
         if (_alertedPids.TryGetValue(pid, out var last) && (now - last).TotalMinutes < 5)
             return;
 
-        // Skip obvious system processes
         if (IsSystemProcess(procName)) return;
 
         var handle = OpenProcess(PROCESS_VM_READ | PROCESS_QUERY_INFORMATION, false, pid);
@@ -132,12 +130,10 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
             long totalBytes = regions.Sum(r => r.size);
             if (totalBytes < HUNDRED_MB)
             {
-                // Check uniform-size heuristic regardless of total size
                 CheckUniformSizeAndAlert(pid, procName, regions, totalBytes, now, ct);
                 return;
             }
 
-            // Calculate average entropy from sampled bytes
             double avgEntropy = await CalculateAverageEntropyAsync(handle, regions);
 
             bool fired = false;
@@ -182,8 +178,6 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
     private void CheckUniformSizeAndAlert(int pid, string procName,
         List<(IntPtr baseAddr, long size)> regions, long totalBytes, DateTime now, CancellationToken ct)
     {
-        // Bucketing/threshold logic lives in HeapSprayHeuristics so it can be unit tested without
-        // a live process; this method keeps only the alert plumbing.
         var verdict = Detection.Heuristics.HeapSprayHeuristics.EvaluateUniformSizes(
             regions.Select(r => r.size).ToList());
 
@@ -246,7 +240,6 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
                 total += CalculateEntropy(buffer, bytesRead);
                 sampled++;
             }
-            // Yield occasionally to avoid blocking
             if (sampled % 10 == 0)
                 await Task.Yield();
         }
@@ -254,8 +247,6 @@ public sealed class HeapSprayDetector : IHeapSprayDetector
         return sampled > 0 ? total / sampled : 0;
     }
 
-    // Both delegate to HeapSprayHeuristics — the logic is identical, but there it is reachable
-    // from tests instead of being locked behind a P/Invoke-driven scan loop.
     private static double CalculateEntropy(byte[] data, int length)
         => Detection.Heuristics.HeapSprayHeuristics.CalculateEntropy(data.AsSpan(0, length));
 

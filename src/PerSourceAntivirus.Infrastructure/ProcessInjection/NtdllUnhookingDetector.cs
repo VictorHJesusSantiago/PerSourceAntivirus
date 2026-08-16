@@ -38,10 +38,6 @@ public sealed class NtdllUnhookingDetector : INtdllUnhookingDetector
         _scopeFactory = scopeFactory;
     }
 
-    // [AUDIT FIX — CRITICAL] This detector is a singleton but used to take a *scoped*
-    // INtdllUnhookingAlertRepository directly (captive dependency): one AppDbContext captured for the
-    // process lifetime and written to from background scan threads, where it is not thread-safe.
-    // Scope-per-write is the pattern CLAUDE.md mandates for exactly this reason.
     private async Task PersistAsync(NtdllUnhookingAlert alert, CancellationToken ct)
     {
         try

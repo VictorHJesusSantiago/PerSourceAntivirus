@@ -16,10 +16,9 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
     private readonly ConcurrentDictionary<string, DateTime> _recentAlerts = new();
     private volatile bool _running;
 
-    // Known Heaven's Gate byte patterns
-    private static readonly byte[] PatternPushRetf = [0x6A, 0x33, 0xCB];           // push 33h; retf
-    private static readonly byte[] PatternFarJmpFF2D = [0xFF, 0x2D];               // jmp far [mem]
-    private static readonly byte[] PatternFarJmpEA = [0xEA];                       // jmp far imm16:imm32
+    private static readonly byte[] PatternPushRetf = [0x6A, 0x33, 0xCB];
+    private static readonly byte[] PatternFarJmpFF2D = [0xFF, 0x2D];
+    private static readonly byte[] PatternFarJmpEA = [0xEA];
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
@@ -57,7 +56,6 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
     private const int PROCESS_VM_READ = 0x0010;
     private const int PROCESS_QUERY_INFORMATION = 0x0400;
     private const uint MEM_COMMIT = 0x1000;
-    // Executable page protection masks
     private const uint PAGE_EXECUTE = 0x10;
     private const uint PAGE_EXECUTE_READ = 0x20;
     private const uint PAGE_EXECUTE_READWRITE = 0x40;
@@ -70,10 +68,6 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
         _scopeFactory = scopeFactory;
     }
 
-    // [AUDIT FIX — CRITICAL] This detector is a singleton but used to take a *scoped*
-    // IHeavensGateAlertRepository directly (captive dependency): one AppDbContext captured for the
-    // process lifetime and written to from background scan threads, where it is not thread-safe.
-    // Scope-per-write is the pattern CLAUDE.md mandates for exactly this reason.
     private async Task PersistAsync(HeavensGateAlert alert, CancellationToken ct)
     {
         try
@@ -138,7 +132,6 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
             if (!IsWow64Process(handle, out bool isWow64) || !isWow64)
                 return;
 
-            // Build set of system module address ranges to skip
             var systemModuleRanges = BuildSystemModuleRanges(handle);
 
             var address = IntPtr.Zero;
@@ -181,7 +174,6 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
         if (!ReadProcessMemory(handle, mbi.BaseAddress, buffer, readSize, out int bytesRead) || bytesRead == 0)
             return;
 
-        // Pattern a: push 33h; retf — classic Heaven's Gate
         for (int i = 0; i <= bytesRead - PatternPushRetf.Length; i++)
         {
             if (buffer[i] == PatternPushRetf[0] && buffer[i + 1] == PatternPushRetf[1] && buffer[i + 2] == PatternPushRetf[2])
@@ -192,7 +184,6 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
             }
         }
 
-        // Pattern b: FF 2D (jmp far [mem]) — "FarJmpCS33"
         for (int i = 0; i <= bytesRead - 2; i++)
         {
             if (buffer[i] == 0xFF && buffer[i + 1] == 0x2D)
@@ -205,7 +196,6 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
             }
         }
 
-        // Pattern c: EA <4 bytes> 33 00 — far jmp with CS=0x33 selector
         for (int i = 0; i <= bytesRead - 7; i++)
         {
             if (buffer[i] == 0xEA && buffer[i + 5] == 0x33 && buffer[i + 6] == 0x00)
@@ -275,12 +265,10 @@ public sealed class HeavensGateDetector : IHeavensGateDetector
                 if (path.Contains("ntdll", StringComparison.OrdinalIgnoreCase) ||
                     path.Contains("wow64", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Use VirtualQueryEx to find the size of this module
                     if (VirtualQueryEx(handle, mods[i], out var mbi, (uint)Marshal.SizeOf<MEMORY_BASIC_INFORMATION>()))
                     {
                         long start = mods[i].ToInt64();
                         long size = (long)mbi.RegionSize;
-                        // Approximate: use at least 4MB for ntdll
                         if (size < 4 * 1024 * 1024) size = 4 * 1024 * 1024;
                         ranges.Add((start, start + size));
                     }

@@ -64,10 +64,6 @@ public sealed class ModuleStompingDetector : IModuleStompingDetector
         _scopeFactory = scopeFactory;
     }
 
-    // [AUDIT FIX — CRITICAL] This detector is a singleton but used to take a *scoped*
-    // IModuleStompingAlertRepository directly (captive dependency): one AppDbContext captured for the
-    // process lifetime and written to from background scan threads, where it is not thread-safe.
-    // Scope-per-write is the pattern CLAUDE.md mandates for exactly this reason.
     private async Task PersistAsync(ModuleStompingAlert alert, CancellationToken ct)
     {
         try
@@ -166,13 +162,11 @@ public sealed class ModuleStompingDetector : IModuleStompingDetector
     private async Task CheckModuleAsync(IntPtr processHandle, int pid, string procName,
         IntPtr moduleBase, string modulePath, string moduleName, CancellationToken ct)
     {
-        // Read the PE header from memory (first 4096 bytes)
         var headerBuf = new byte[4096];
         if (!ReadProcessMemory(processHandle, moduleBase, headerBuf, headerBuf.Length, out int headerRead)
             || headerRead < 0x40)
             return;
 
-        // Parse PE header to find .text section
         int lfanew;
         try { lfanew = BitConverter.ToInt32(headerBuf, 0x3C); }
         catch (Exception) { return; }
@@ -219,7 +213,7 @@ public sealed class ModuleStompingDetector : IModuleStompingDetector
 
         if (!found || textVirtualAddress == 0 || textVirtualSize <= 0) return;
 
-        int readSize = Math.Min(textVirtualSize, 64 * 1024 * 1024); // cap at 64 MB
+        int readSize = Math.Min(textVirtualSize, 64 * 1024 * 1024);
         var memBytes = new byte[readSize];
         var textBaseAddress = new IntPtr(moduleBase.ToInt64() + textVirtualAddress);
 
@@ -236,7 +230,6 @@ public sealed class ModuleStompingDetector : IModuleStompingDetector
 
         string memHash = Convert.ToHexString(SHA256.HashData(memBytes));
 
-        // Get on-disk hash (cached)
         string diskHash;
         if (!_diskHashes.TryGetValue(modulePath, out diskHash!))
         {
