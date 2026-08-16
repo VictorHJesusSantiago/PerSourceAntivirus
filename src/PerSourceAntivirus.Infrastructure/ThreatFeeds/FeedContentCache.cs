@@ -4,9 +4,6 @@ using System.Text.Json;
 
 namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 
-// Tracks a SHA-256 of the last successfully processed raw feed payload per feed name, so an
-// updater can skip re-parsing/re-diffing when the upstream feed content hasn't changed since
-// the last run — the "incremental update with diff" building block shared by feed updaters.
 internal sealed class FeedContentCache
 {
     private readonly string _stateFile;
@@ -18,7 +15,6 @@ internal sealed class FeedContentCache
         _hashes = Load(stateFile);
     }
 
-    // Returns true (and records the new hash) if this content differs from what was last seen.
     public bool HasChangedAndRecord(string feedName, string rawContent)
     {
         var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(rawContent)));

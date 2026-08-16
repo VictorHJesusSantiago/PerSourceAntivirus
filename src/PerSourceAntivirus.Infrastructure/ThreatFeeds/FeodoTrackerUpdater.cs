@@ -2,7 +2,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.ThreatFeeds;
 
-// Downloads Feodo Tracker aggressive CSV blocklist; extracts destination IPs and rewrites ip-blocklist.txt.
 public sealed class FeodoTrackerUpdater : IThreatFeedUpdater
 {
     public string FeedName => "Feodo Tracker";
@@ -25,8 +24,6 @@ public sealed class FeodoTrackerUpdater : IThreatFeedUpdater
     {
         try
         {
-            // Created per call: the factory pools and rotates the underlying handler, so this is
-            // cheap and gives us fresh DNS — unlike a singleton HttpClient held for the app's life.
             using var http = _httpClientFactory.CreateClient(ThreatFeedHttpClient.Name);
             var csv  = await http.GetStringAsync(FeedUrl, cancellationToken);
             var ips  = ParseIps(csv);
@@ -40,10 +37,6 @@ public sealed class FeodoTrackerUpdater : IThreatFeedUpdater
         }
     }
 
-    // CSV columns: first_seen_utc,dst_ip,dst_port,... — comment lines start with '#'.
-    // The feed is fetched over HTTP from an external source, so each candidate is validated as a
-    // real IP address before it is persisted: a malformed/MITM'd feed must not be able to inject
-    // arbitrary content into the blocklist file. Duplicates are collapsed to keep the file stable.
     internal static List<string> ParseIps(string csv)
     {
         var ips = new List<string>();
