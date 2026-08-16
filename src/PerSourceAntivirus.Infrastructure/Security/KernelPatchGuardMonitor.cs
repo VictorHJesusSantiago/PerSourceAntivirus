@@ -50,8 +50,6 @@ public sealed class KernelPatchGuardMonitor(IServiceScopeFactory scopeFactory) :
                 var alerts = await CheckAsync(ct);
                 foreach (var alert in alerts)
                 {
-                    // [AUDIT FIX — CRITICAL] Scope-per-write: this singleton used to capture the
-                    // scoped repository and write to one shared DbContext from the monitor loop.
                     using (var scope = scopeFactory.CreateScope())
                     {
                         var repository = scope.ServiceProvider.GetRequiredService<IKernelPatchGuardAlertRepository>();

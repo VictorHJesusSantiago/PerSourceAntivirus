@@ -32,7 +32,6 @@ public class ScriptAnalyzer : IScriptAnalyzer
             : AnalyzeByRegex(scriptType, content);
     }
 
-    // ------------------------------------------------------------------ PowerShell AST
 
     private static ScriptAnalysisData AnalyzePowerShellAst(string content)
     {
@@ -49,11 +48,9 @@ public class ScriptAnalyzer : IScriptAnalyzer
         }
         catch
         {
-            // Parser failure: fall back to regex for this file.
             return AnalyzeByRegex(ScriptType.PowerShell, content);
         }
 
-        // --- Pass 1: command names ---
         foreach (var cmd in ast.FindAll(a => a is CommandAst, true).OfType<CommandAst>())
         {
             var name = cmd.GetCommandName()?.ToLowerInvariant();
@@ -75,7 +72,6 @@ public class ScriptAnalyzer : IScriptAnalyzer
                     break;
 
                 case "new-object":
-                    // e.g. New-Object Net.WebClient
                     var firstArg = cmd.CommandElements.Count > 1
                         ? cmd.CommandElements[1].ToString().ToLowerInvariant()
                         : string.Empty;
@@ -105,7 +101,6 @@ public class ScriptAnalyzer : IScriptAnalyzer
                     break;
             }
 
-            // Check ALL command parameters regardless of command name
             foreach (var element in cmd.CommandElements)
             {
                 if (element is not CommandParameterAst param) continue;
@@ -135,7 +130,6 @@ public class ScriptAnalyzer : IScriptAnalyzer
             }
         }
 
-        // --- Pass 2: member expressions (.DownloadString, ::FromBase64String, etc.) ---
         foreach (var member in ast.FindAll(a => a is MemberExpressionAst, true).OfType<MemberExpressionAst>())
         {
             var mname = member.Member.ToString().ToLowerInvariant();
@@ -156,13 +150,11 @@ public class ScriptAnalyzer : IScriptAnalyzer
                     break;
                 case "invoke":
                 case "invokeasync":
-                    // [System.Reflection.Assembly]::Load + Invoke = reflective execution
                     AddPattern(patterns, "Reflection-based invocation");
                     break;
             }
         }
 
-        // --- Pass 3: AMSI bypass + long base64 strings in string literals ---
         foreach (var str in ast.FindAll(a => a is StringConstantExpressionAst, true).OfType<StringConstantExpressionAst>())
         {
             var v = str.Value;
@@ -176,7 +168,6 @@ public class ScriptAnalyzer : IScriptAnalyzer
             }
         }
 
-        // --- Pass 4: nested script-block count (> 2 is unusual in benign scripts) ---
         var sbCount = ast.FindAll(a => a is ScriptBlockExpressionAst, true).OfType<ScriptBlockExpressionAst>().Count();
         if (sbCount > 2)
         {
@@ -189,7 +180,6 @@ public class ScriptAnalyzer : IScriptAnalyzer
             hasProcessExec, hasFileSystem, patterns);
     }
 
-    // ------------------------------------------------------------------ regex fallback for non-PS types
 
     private static ScriptAnalysisData AnalyzeByRegex(ScriptType scriptType, string content)
     {
@@ -343,7 +333,6 @@ public class ScriptAnalyzer : IScriptAnalyzer
         Flag(lower, patterns, "innerHTML injection", ".innerhtml");
     }
 
-    // ------------------------------------------------------------------ shared helpers
 
     private static bool IsBase64Like(string s)
         => s.All(c => char.IsAsciiLetterOrDigit(c) || c is '+' or '/' or '=');

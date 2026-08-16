@@ -40,9 +40,6 @@ public sealed class AmsiBypassDetector : IAmsiBypassDetector
         [0x33, 0xC0],
     ];
 
-    // Cancellation is the sole stop mechanism here (the loop waits on _cts.Token, and
-    // StopMonitoring cancels it) — a separate _running flag existed but was written and never
-    // read, so it was removed rather than left as misleading vestigial state.
     private CancellationTokenSource? _cts;
 
     public event EventHandler<AmsiBypassAlertEventArgs>? AlertDetected;

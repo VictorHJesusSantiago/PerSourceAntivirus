@@ -46,8 +46,6 @@ public sealed class SupplyChainDetector(IServiceScopeFactory scopeFactory) : ISu
                 var alerts = await ScanRunningProcessesAsync(ct);
                 foreach (var alert in alerts)
                 {
-                    // [AUDIT FIX — CRITICAL] Scope-per-write: this singleton used to capture the
-                    // scoped repository and write to one shared DbContext from the scan loop.
                     using (var scope = scopeFactory.CreateScope())
                     {
                         var repository = scope.ServiceProvider.GetRequiredService<ISupplyChainAlertRepository>();
@@ -123,7 +121,7 @@ public sealed class SupplyChainDetector(IServiceScopeFactory scopeFactory) : ISu
     {
         try
         {
-            #pragma warning disable SYSLIB0057 // Only API that extracts an Authenticode-embedded cert; X509CertificateLoader has no equivalent.
+            #pragma warning disable SYSLIB0057
             var rawCert = X509Certificate.CreateFromSignedFile(filePath);
             #pragma warning restore SYSLIB0057
             var cert2 = new X509Certificate2(rawCert);
@@ -213,7 +211,7 @@ public sealed class SupplyChainDetector(IServiceScopeFactory scopeFactory) : ISu
     {
         try
         {
-            #pragma warning disable SYSLIB0057 // Only API that extracts an Authenticode-embedded cert; X509CertificateLoader has no equivalent.
+            #pragma warning disable SYSLIB0057
             X509Certificate.CreateFromSignedFile(filePath);
             #pragma warning restore SYSLIB0057
             return true;
@@ -242,7 +240,7 @@ public sealed class SupplyChainDetector(IServiceScopeFactory scopeFactory) : ISu
     {
         try
         {
-            #pragma warning disable SYSLIB0057 // Only API that extracts an Authenticode-embedded cert; X509CertificateLoader has no equivalent.
+            #pragma warning disable SYSLIB0057
             var cert = X509Certificate.CreateFromSignedFile(filePath);
             #pragma warning restore SYSLIB0057
             return new X509Certificate2(cert).Subject;
@@ -257,7 +255,7 @@ public sealed class SupplyChainDetector(IServiceScopeFactory scopeFactory) : ISu
     {
         try
         {
-            #pragma warning disable SYSLIB0057 // Only API that extracts an Authenticode-embedded cert; X509CertificateLoader has no equivalent.
+            #pragma warning disable SYSLIB0057
             var cert = X509Certificate.CreateFromSignedFile(filePath);
             #pragma warning restore SYSLIB0057
             return new X509Certificate2(cert).Thumbprint;
