@@ -3,9 +3,6 @@ using System.Security.Cryptography;
 
 namespace PerSourceAntivirus.Infrastructure.Persistence;
 
-// Generates (or loads) the passphrase used to encrypt persourceav.db at rest via SQLCipher.
-// The passphrase itself is protected with DPAPI (current-user scope) so the on-disk key file
-// is useless without the same Windows user account that created it.
 [SupportedOSPlatform("windows")]
 public static class DatabaseEncryptionKeyProvider
 {
@@ -24,7 +21,6 @@ public static class DatabaseEncryptionKeyProvider
             }
             catch
             {
-                // Corrupt or from a different user profile — regenerate below.
             }
         }
 

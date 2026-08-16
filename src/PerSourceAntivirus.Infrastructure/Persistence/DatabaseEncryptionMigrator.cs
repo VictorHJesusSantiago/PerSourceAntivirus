@@ -2,10 +2,6 @@ using Microsoft.Data.Sqlite;
 
 namespace PerSourceAntivirus.Infrastructure.Persistence;
 
-// One-time, in-place conversion of a pre-existing plaintext persourceav.db into a SQLCipher
-// encrypted database, using sqlcipher_export() (attach a new encrypted DB, copy everything,
-// swap the file). New installs never hit this path — AddDbContext already opens fresh
-// databases with Password= set, so they're encrypted from creation.
 public static class DatabaseEncryptionMigrator
 {
     private static readonly byte[] PlaintextSqliteMagic = "SQLite format 3\0"u8.ToArray();
@@ -13,7 +9,7 @@ public static class DatabaseEncryptionMigrator
     public static void EnsureEncrypted(string dbFilePath, string passphrase)
     {
         if (!File.Exists(dbFilePath)) return;
-        if (!IsPlaintextSqlite(dbFilePath)) return; // already encrypted (or not a recognizable sqlite file)
+        if (!IsPlaintextSqlite(dbFilePath)) return;
 
         var tempEncryptedPath = dbFilePath + ".encrypting.tmp";
         if (File.Exists(tempEncryptedPath)) File.Delete(tempEncryptedPath);
@@ -52,8 +48,6 @@ public static class DatabaseEncryptionMigrator
         }
         catch
         {
-            // Leave the original plaintext database untouched if anything goes wrong —
-            // the app keeps working unencrypted rather than risking data loss.
             try { if (File.Exists(tempEncryptedPath)) File.Delete(tempEncryptedPath); } catch { }
         }
     }

@@ -29,7 +29,6 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options) : DbCo
     public DbSet<ComHijackAlert> ComHijackAlerts => Set<ComHijackAlert>();
     public DbSet<TlsInspectionEvent> TlsInspectionEvents => Set<TlsInspectionEvent>();
 
-    // Phase 13 — new detection engines
     public DbSet<EmulationResult> EmulationResults => Set<EmulationResult>();
     public DbSet<UnpackingResult> UnpackingResults => Set<UnpackingResult>();
     public DbSet<AmsiScanEvent> AmsiScanEvents => Set<AmsiScanEvent>();
@@ -42,32 +41,27 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options) : DbCo
     public DbSet<EmailScanResult> EmailScanResults => Set<EmailScanResult>();
     public DbSet<SteganographyAlert> SteganographyAlerts => Set<SteganographyAlert>();
 
-    // Phase 15 — Network security + kernel protection
     public DbSet<NetworkIntrusionAlert> NetworkIntrusionAlerts => Set<NetworkIntrusionAlert>();
     public DbSet<ArpSpoofingAlert> ArpSpoofingAlerts => Set<ArpSpoofingAlert>();
     public DbSet<LlmnrPoisoningAlert> LlmnrPoisoningAlerts => Set<LlmnrPoisoningAlert>();
     public DbSet<KeyloggerDetectionAlert> KeyloggerDetectionAlerts => Set<KeyloggerDetectionAlert>();
     public DbSet<SafeFolderViolationAlert> SafeFolderViolationAlerts => Set<SafeFolderViolationAlert>();
 
-    // Phase 16 — Network detection (items 36–40)
     public DbSet<PortScanAlert> PortScanAlerts => Set<PortScanAlert>();
     public DbSet<SmbLateralMovementAlert> SmbLateralMovementAlerts => Set<SmbLateralMovementAlert>();
     public DbSet<TlsCertAlert> TlsCertAlerts => Set<TlsCertAlert>();
     public DbSet<BeaconingAnalysis> BeaconingAnalyses => Set<BeaconingAnalysis>();
     public DbSet<WpadAbuseAlert> WpadAbuseAlerts => Set<WpadAbuseAlert>();
 
-    // Phase 16 — Ransomware prevention (items 41–43)
     public DbSet<VssSnapshotEvent> VssSnapshotEvents => Set<VssSnapshotEvent>();
     public DbSet<ScreenLockerAlert> ScreenLockerAlerts => Set<ScreenLockerAlert>();
     public DbSet<MbrWriteAttemptAlert> MbrWriteAttemptAlerts => Set<MbrWriteAttemptAlert>();
 
-    // Phase 16 — Privacy (items 44–48)
     public DbSet<ClipboardHijackAlert> ClipboardHijackAlerts => Set<ClipboardHijackAlert>();
     public DbSet<WebcamAccessEvent> WebcamAccessEvents => Set<WebcamAccessEvent>();
     public DbSet<MicrophoneAccessEvent> MicrophoneAccessEvents => Set<MicrophoneAccessEvent>();
     public DbSet<ScreenCaptureAlert> ScreenCaptureAlerts => Set<ScreenCaptureAlert>();
 
-    // Phase 16 — Scanners + audit (items 49–55)
     public DbSet<SensitiveDataFinding> SensitiveDataFindings => Set<SensitiveDataFinding>();
     public DbSet<VulnerableSoftwareAlert> VulnerableSoftwareAlerts => Set<VulnerableSoftwareAlert>();
     public DbSet<SecurityPostureIssue> SecurityPostureIssues => Set<SecurityPostureIssue>();
@@ -76,12 +70,10 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options) : DbCo
     public DbSet<UserAccountAuditFinding> UserAccountAuditFindings => Set<UserAccountAuditFinding>();
     public DbSet<OpenPortInfo> OpenPortInfos => Set<OpenPortInfo>();
 
-    // Phase 17 — EDR event history (items 56–58)
     public DbSet<ProcessCreationEvent> ProcessCreationEvents => Set<ProcessCreationEvent>();
     public DbSet<FileActivityEvent> FileActivityEvents => Set<FileActivityEvent>();
     public DbSet<RegistryActivityEvent> RegistryActivityEvents => Set<RegistryActivityEvent>();
 
-    // Phase 17 — Threat intelligence (items 59–62)
     public DbSet<MitreAttackMapping> MitreAttackMappings => Set<MitreAttackMapping>();
     public DbSet<CustomIoc> CustomIocs => Set<CustomIoc>();
     public DbSet<StixFeedSource> StixFeedSources => Set<StixFeedSource>();
@@ -89,31 +81,25 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options) : DbCo
     public DbSet<AlertTriage> AlertTriages => Set<AlertTriage>();
     public DbSet<Incident> Incidents => Set<Incident>();
 
-    // Phase 17 — Application control + sandboxing (items 63–66)
     public DbSet<AppWhitelistEntry> AppWhitelistEntries => Set<AppWhitelistEntry>();
     public DbSet<PuaAlert> PuaAlerts => Set<PuaAlert>();
     public DbSet<ScriptSandboxResult> ScriptSandboxResults => Set<ScriptSandboxResult>();
 
-    // Phase 17 — Browser protection (items 67–69)
     public DbSet<BrowserExtensionFinding> BrowserExtensionFindings => Set<BrowserExtensionFinding>();
     public DbSet<BrowserCredentialAccessAlert> BrowserCredentialAccessAlerts => Set<BrowserCredentialAccessAlert>();
 
-    // Phase 17 — Process mitigation + security enforcement (items 70–74)
     public DbSet<CfgViolationAlert> CfgViolationAlerts => Set<CfgViolationAlert>();
     public DbSet<AmsiBypassAlert> AmsiBypassAlerts => Set<AmsiBypassAlert>();
 
-    // Phase 18 — Notifications + scan profiles (items 80, 84)
     public DbSet<NotificationRecord> NotificationRecords => Set<NotificationRecord>();
     public DbSet<ScanProfile> ScanProfiles => Set<ScanProfile>();
 
-    // Phase 18 — Behavioral analysis (items 75–78)
     public DbSet<ApiCallSequenceAlert> ApiCallSequenceAlerts => Set<ApiCallSequenceAlert>();
     public DbSet<ParentChildAnomalyAlert> ParentChildAnomalyAlerts => Set<ParentChildAnomalyAlert>();
     public DbSet<ProcessCommandLineAlert> ProcessCommandLineAlerts => Set<ProcessCommandLineAlert>();
     public DbSet<NetworkBehaviorProfile> NetworkBehaviorProfiles => Set<NetworkBehaviorProfile>();
     public DbSet<NetworkBehaviorAlert> NetworkBehaviorAlerts => Set<NetworkBehaviorAlert>();
 
-    // Phase 18 — Reporting + forensics + security (items 87, 91–100)
     public DbSet<ThreatReport> ThreatReports => Set<ThreatReport>();
     public DbSet<MemoryDumpResult> MemoryDumpResults => Set<MemoryDumpResult>();
     public DbSet<FirmwareVariableSnapshot> FirmwareVariableSnapshots => Set<FirmwareVariableSnapshot>();
@@ -121,7 +107,6 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options) : DbCo
     public DbSet<KernelPatchGuardAlert> KernelPatchGuardAlerts => Set<KernelPatchGuardAlert>();
     public DbSet<SupplyChainAlert> SupplyChainAlerts => Set<SupplyChainAlert>();
 
-    // Phase 14 — Advanced exploit prevention
     public DbSet<ProcessHollowingAlert> ProcessHollowingAlerts => Set<ProcessHollowingAlert>();
     public DbSet<ProcessDoppelgangingAlert> ProcessDoppelgangingAlerts => Set<ProcessDoppelgangingAlert>();
     public DbSet<ReflectiveDllInjectionAlert> ReflectiveDllInjectionAlerts => Set<ReflectiveDllInjectionAlert>();
@@ -135,7 +120,6 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options) : DbCo
     public DbSet<ModuleStompingAlert> ModuleStompingAlerts => Set<ModuleStompingAlert>();
     public DbSet<TransactedHollowingAlert> TransactedHollowingAlerts => Set<TransactedHollowingAlert>();
 
-    // Phase 19 — DLL hijacking, cryptojacking, Authenticode/certificate trust, custom signatures
     public DbSet<DllHijackAlert> DllHijackAlerts => Set<DllHijackAlert>();
     public DbSet<CryptojackingAlert> CryptojackingAlerts => Set<CryptojackingAlert>();
     public DbSet<UnsignedBinaryAlert> UnsignedBinaryAlerts => Set<UnsignedBinaryAlert>();
@@ -143,7 +127,6 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options) : DbCo
     public DbSet<CertificateTrustEntry> CertificateTrustEntries => Set<CertificateTrustEntry>();
     public DbSet<CertificateTrustAlert> CertificateTrustAlerts => Set<CertificateTrustAlert>();
 
-    // Phase 20 — network/GUI/SO/ML/observability enhancements
     public DbSet<ProcessFirewallRule> ProcessFirewallRules => Set<ProcessFirewallRule>();
     public DbSet<DnsTunnelingAlert> DnsTunnelingAlerts => Set<DnsTunnelingAlert>();
     public DbSet<GeoIpBlockAlert> GeoIpBlockAlerts => Set<GeoIpBlockAlert>();
@@ -153,7 +136,6 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options) : DbCo
     public DbSet<RemoteAgentEvent> RemoteAgentEvents => Set<RemoteAgentEvent>();
     public DbSet<AuditLogChainEntry> AuditLogChainEntries => Set<AuditLogChainEntry>();
 
-    // Phase 21 — threat intel scoring, response/remediation
     public DbSet<HostIsolationEvent> HostIsolationEvents => Set<HostIsolationEvent>();
     public DbSet<SampleSubmissionRecord> SampleSubmissionRecords => Set<SampleSubmissionRecord>();
     public DbSet<ResponsePlaybookRule> ResponsePlaybookRules => Set<ResponsePlaybookRule>();
@@ -161,9 +143,6 @@ public partial class AppDbContext(DbContextOptions<AppDbContext> options) : DbCo
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // [ADR-002] Entity configuration lives in Configuration/*.cs partials, grouped by area.
-        // The call order here matches the original single-method order exactly, so the model
-        // EF builds is unchanged and no migration drift is introduced.
         ConfigureScanningEntities(modelBuilder);
         ConfigureDetectionEntities(modelBuilder);
         ConfigureResponseEntities(modelBuilder);
