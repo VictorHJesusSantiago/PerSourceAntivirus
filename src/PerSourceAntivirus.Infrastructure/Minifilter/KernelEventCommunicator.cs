@@ -5,31 +5,26 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Minifilter;
 
-// Matches PSAV_KERNEL_EVENT in PerSourceAntivirus.Driver.c (pack 1)
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal unsafe struct PsavKernelEvent
 {
-    public FilterMessageHeader Header;   // 12 bytes (reuse from MinifilterCommunicator)
-    public uint EventType;               //  4 bytes
-    public uint ProcessId;               //  4 bytes
-    public uint ParentProcessId;         //  4 bytes
-    public uint AccessMaskStripped;      //  4 bytes
-    public ulong ImageBase;              //  8 bytes
-    public fixed char ImagePath[512];    // 1024 bytes
-    public fixed char CommandLine[256];  //  512 bytes
-    // Total: 1572 bytes
+    public FilterMessageHeader Header;
+    public uint EventType;
+    public uint ProcessId;
+    public uint ParentProcessId;
+    public uint AccessMaskStripped;
+    public ulong ImageBase;
+    public fixed char ImagePath[512];
+    public fixed char CommandLine[256];
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal struct PsavKernelEventReply
 {
-    public FilterReplyHeader Header;     // 12 bytes
-    public uint Acknowledged;            //  4 bytes
+    public FilterReplyHeader Header;
+    public uint Acknowledged;
 }
 
-// Note: an optional IYaraScanner constructor parameter used to be declared here but was never
-// referenced (Speculative Generality — the kernel event stream is surfaced to callers, which
-// decide what to scan). Removed; re-add it if this class ever scans inline.
 public class KernelEventCommunicator : IKernelEventMonitor
 {
     private const string EventPortName = @"\PSAVEventPort";
@@ -70,7 +65,7 @@ public class KernelEventCommunicator : IKernelEventMonitor
                 catch (OperationCanceledException) { yield break; }
                 catch (ExternalException ex) when (ex.ErrorCode is unchecked((int)0x80070006) or -1)
                 {
-                    yield break; // driver unloaded
+                    yield break;
                 }
 
                 if (ev is not null)
@@ -88,7 +83,6 @@ public class KernelEventCommunicator : IKernelEventMonitor
         if (hr != 0)
             throw new ExternalException($"FilterGetMessage (event) HRESULT=0x{hr:X8}", hr);
 
-        // Acknowledge immediately
         var reply = new PsavKernelEventReply
         {
             Header = new FilterReplyHeader { Status = 0, MessageId = msg.Header.MessageId },

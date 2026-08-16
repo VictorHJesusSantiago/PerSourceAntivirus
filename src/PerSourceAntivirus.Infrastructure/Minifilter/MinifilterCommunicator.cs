@@ -5,7 +5,6 @@ using PerSourceAntivirus.Application.Common.Interfaces;
 
 namespace PerSourceAntivirus.Infrastructure.Minifilter;
 
-// Structs mirror the pack(1) layout in PerSourceAntivirus.Driver.c
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal struct FilterMessageHeader
 {
@@ -16,30 +15,28 @@ internal struct FilterMessageHeader
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal struct FilterReplyHeader
 {
-    public int Status;          // NTSTATUS
+    public int Status;
     public ulong MessageId;
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal unsafe struct PsavNotification
 {
-    public FilterMessageHeader Header;   // 12 bytes
-    public uint BytesToScan;             //  4 bytes
-    public uint Flags;                   //  4 bytes
-    public fixed char FileName[512];     // 1024 bytes
-    public fixed byte Contents[4096];   // 4096 bytes
-    // Total: 5140 bytes
+    public FilterMessageHeader Header;
+    public uint BytesToScan;
+    public uint Flags;
+    public fixed char FileName[512];
+    public fixed byte Contents[4096];
 }
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
 internal struct PsavReply
 {
-    public FilterReplyHeader Header;    // 12 bytes
-    public byte SafeToOpen;             //  1 byte
+    public FilterReplyHeader Header;
+    public byte SafeToOpen;
     public byte Pad0;
     public byte Pad1;
     public byte Pad2;
-    // Total: 16 bytes
 }
 
 public class MinifilterCommunicator(IYaraScanner yaraScanner) : IMinifilterMonitor
@@ -88,8 +85,6 @@ public class MinifilterCommunicator(IYaraScanner yaraScanner) : IMinifilterMonit
         SafeFileHandle hPort,
         [EnumeratorCancellation] CancellationToken ct)
     {
-        // FilterGetMessage is a blocking synchronous call — run it on a background thread
-        // so we don't block the async state machine.
         while (!ct.IsCancellationRequested)
         {
             MinifilterEvent? ev;
@@ -100,7 +95,6 @@ public class MinifilterCommunicator(IYaraScanner yaraScanner) : IMinifilterMonit
             catch (OperationCanceledException) { yield break; }
             catch (Exception ex)
             {
-                // Driver unloaded or port closed — stop gracefully
                 if (ex is ExternalException { ErrorCode: unchecked((int)0x80070006) } ||
                     ex.Message.Contains("invalid handle", StringComparison.OrdinalIgnoreCase))
                     yield break;
@@ -120,7 +114,6 @@ public class MinifilterCommunicator(IYaraScanner yaraScanner) : IMinifilterMonit
 
         ct.ThrowIfCancellationRequested();
 
-        // S_OK = 0; anything else is an error (driver unloaded, port closed, etc.)
         if (hr != 0)
             throw new ExternalException($"FilterGetMessage HRESULT=0x{hr:X8}", hr);
 
@@ -133,7 +126,6 @@ public class MinifilterCommunicator(IYaraScanner yaraScanner) : IMinifilterMonit
         for (var j = 0; j < bytesToScan; j++)
             contents[j] = notification.Contents[j];
 
-        // YARA-scan the file contents
         var matches = bytesToScan > 0 ? yaraScanner.ScanMemory(contents) : [];
         var blocked = matches.Count > 0;
         var blockReason = blocked
