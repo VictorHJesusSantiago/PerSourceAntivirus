@@ -147,7 +147,6 @@ public sealed class EnhancedBeaconingDetector(IServiceScopeFactory scopeFactory)
         AlertDetected?.Invoke(this, new BeaconingAlertEventArgs(analysis));
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; these run on capture-callback threads.
     private async Task PersistAsync(BeaconingAnalysis analysis)
     {
         try

@@ -5,8 +5,6 @@ using PerSourceAntivirus.Domain.Entities;
 
 namespace PerSourceAntivirus.Infrastructure.Network;
 
-// Watches captured traffic in short rolling windows and blocks (via IWfpBlocker) any remote
-// IP whose country is on the administrator-configured blocked-country list.
 public sealed class GeoIpEnforcementDetector : IGeoIpEnforcementDetector
 {
     private readonly IServiceScopeFactory _scopeFactory;
@@ -43,7 +41,7 @@ public sealed class GeoIpEnforcementDetector : IGeoIpEnforcementDetector
 
     public async Task StartMonitoringAsync(string? deviceName, CancellationToken ct)
     {
-        if (_geoIp.BlockedCountries.Count == 0) return; // nothing configured, no-op
+        if (_geoIp.BlockedCountries.Count == 0) return;
 
         _running = true;
         try

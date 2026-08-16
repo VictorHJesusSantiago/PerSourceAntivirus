@@ -168,7 +168,7 @@ public sealed class HostIsolationService : IHostIsolationService, IDisposable
                 DisplayData = new FwpmDisplayData0 { Name = namePtr, Description = descPtr },
                 LayerKey = layerKey,
                 SubLayerKey = IsolationSubLayer,
-                NumFilterConditions = 0, // no conditions = matches everything on this layer
+                NumFilterConditions = 0,
                 FilterCondition = nint.Zero,
                 Action = new FwpmAction0 { Type = FwpActionBlock },
                 Weight = new FwpValue0 { Type = FwpEmpty }
@@ -210,10 +210,10 @@ public sealed class HostIsolationService : IHostIsolationService, IDisposable
             {
                 SubLayerKey = IsolationSubLayer,
                 DisplayData = new FwpmDisplayData0 { Name = namePtr, Description = descPtr },
-                Weight = 0xFFFF // highest weight — takes priority over all other PSAV sublayers
+                Weight = 0xFFFF
             };
             var hr = FwpmSubLayerAdd0(_engine, &sl, nint.Zero);
-            if (hr != 0 && hr != 0x80320009) // FWP_E_ALREADY_EXISTS
+            if (hr != 0 && hr != 0x80320009)
             {
                 FwpmTransactionAbort0(_engine);
                 throw new InvalidOperationException($"FwpmSubLayerAdd0 failed: 0x{hr:X8}");

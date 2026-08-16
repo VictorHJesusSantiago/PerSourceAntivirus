@@ -7,7 +7,6 @@ public class HttpBlocklistUpdater(
     string blocklistFilePath,
     string updateUrl) : IBlocklistUpdater
 {
-    // Static instance avoids socket exhaustion for a singleton updater.
     private static readonly HttpClient HttpClient = new();
 
     public async Task<BlocklistUpdateResult> UpdateAsync(CancellationToken cancellationToken = default)
