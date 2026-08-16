@@ -106,7 +106,6 @@ public static class PeFeatureExtractor
 
             var timestamp = (float)fh.TimeDateStamp / (float)uint.MaxValue;
 
-            // Overlay: file size > (last section raw offset + raw size)
             var hasOverlay = 0f;
             if (sections.Count > 0)
             {
@@ -123,39 +122,39 @@ public static class PeFeatureExtractor
 
             return
             [
-                fileSizeBytes / 1024f,                           // 0  file_size_kb
-                numSections,                                     // 1  num_sections
-                avgEntropy,                                      // 2  avg_section_entropy
-                maxEntropy,                                      // 3  max_section_entropy
-                minEntropy,                                      // 4  min_section_entropy
-                stdEntropy,                                      // 5  std_section_entropy
-                highEntropySections,                             // 6  num_high_entropy_sections
-                pe.Is64Bit ? 1f : 0f,                           // 7  is_64bit
-                pe.IsDll ? 1f : 0f,                             // 8  is_dll
-                pe.IsDotNet ? 1f : 0f,                          // 9  is_dotnet
-                pe.IsAuthenticodeSigned ? 1f : 0f,              // 10 is_signed
+                fileSizeBytes / 1024f,
+                numSections,
+                avgEntropy,
+                maxEntropy,
+                minEntropy,
+                stdEntropy,
+                highEntropySections,
+                pe.Is64Bit ? 1f : 0f,
+                pe.IsDll ? 1f : 0f,
+                pe.IsDotNet ? 1f : 0f,
+                pe.IsAuthenticodeSigned ? 1f : 0f,
                 (pe.ImageNtHeaders.OptionalHeader?.DataDirectory?.Length > 9
-                    && pe.ImageNtHeaders.OptionalHeader.DataDirectory[9].VirtualAddress != 0) ? 1f : 0f, // 11 has_tls
+                    && pe.ImageNtHeaders.OptionalHeader.DataDirectory[9].VirtualAddress != 0) ? 1f : 0f,
                 (pe.ImageNtHeaders.OptionalHeader?.DataDirectory?.Length > 6
-                    && pe.ImageNtHeaders.OptionalHeader.DataDirectory[6].VirtualAddress != 0) ? 1f : 0f, // 12 has_debug
+                    && pe.ImageNtHeaders.OptionalHeader.DataDirectory[6].VirtualAddress != 0) ? 1f : 0f,
                 (pe.ImageNtHeaders.OptionalHeader?.DataDirectory?.Length > 2
-                    && pe.ImageNtHeaders.OptionalHeader.DataDirectory[2].VirtualAddress != 0) ? 1f : 0f, // 13 has_resources
-                hasOverlay,                                      // 14 has_overlay
-                numImports,                                      // 15 num_imports
-                numExports,                                      // 16 num_exports
-                suspCount,                                       // 17 num_suspicious_imports
-                importHash,                                      // 18 import_hash_norm
-                imageSize > 0 ? codeSize / imageSize : 0f,      // 19 ratio_code_to_file
-                imageSize > 0 ? dataSize / imageSize : 0f,      // 20 ratio_data_to_file
-                imageSize > 0 ? ep / imageSize : 0f,            // 21 entry_point_norm
-                numDirs,                                         // 22 num_directories
-                characteristics,                                 // 23 characteristics_norm
-                subsystem,                                       // 24 subsystem
-                majorOs,                                         // 25 major_os_version
-                majorLinker,                                     // 26 major_linker_version
-                optHeaderSize,                                   // 27 optional_header_size_norm
-                anomalies,                                       // 28 num_anomalies
-                timestamp,                                       // 29 timestamp_norm
+                    && pe.ImageNtHeaders.OptionalHeader.DataDirectory[2].VirtualAddress != 0) ? 1f : 0f,
+                hasOverlay,
+                numImports,
+                numExports,
+                suspCount,
+                importHash,
+                imageSize > 0 ? codeSize / imageSize : 0f,
+                imageSize > 0 ? dataSize / imageSize : 0f,
+                imageSize > 0 ? ep / imageSize : 0f,
+                numDirs,
+                characteristics,
+                subsystem,
+                majorOs,
+                majorLinker,
+                optHeaderSize,
+                anomalies,
+                timestamp,
             ];
         }
         catch

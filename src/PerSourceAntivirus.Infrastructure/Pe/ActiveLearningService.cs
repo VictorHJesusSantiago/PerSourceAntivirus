@@ -55,7 +55,7 @@ public sealed class ActiveLearningService : IActiveLearningService
         using var scope = _scopeFactory.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IActiveLearningSampleRepository>();
         var samples = await repository.GetAllAsync(ct).ConfigureAwait(false);
-        if (samples.Count < 10) return 0; // not enough labeled data to train something meaningful
+        if (samples.Count < 10) return 0;
 
         var featureSets = samples
             .Select(s => (features: JsonSerializer.Deserialize<float[]>(s.FeaturesJson), label: s.IsMalicious ? 1.0 : 0.0))
