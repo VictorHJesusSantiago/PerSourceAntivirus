@@ -7,6 +7,6 @@ public class EmulationResult
     public int InstructionCount { get; set; }
     public int ApiCallsIntercepted { get; set; }
     public bool IsSuspicious { get; set; }
-    public required string DetectedPatterns { get; set; }  // comma-joined
+    public required string DetectedPatterns { get; set; }
     public DateTime EmulatedAtUtc { get; set; }
 }
