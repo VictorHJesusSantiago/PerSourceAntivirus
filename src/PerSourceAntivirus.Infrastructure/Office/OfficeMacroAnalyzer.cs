@@ -58,7 +58,6 @@ public class OfficeMacroAnalyzer : IOfficeMacroAnalyzer
         }
     }
 
-    // ------------------------------------------------------------------ extraction
 
     private static byte[]? ExtractVbaProjectFromOoxml(string filePath)
     {
@@ -83,12 +82,10 @@ public class OfficeMacroAnalyzer : IOfficeMacroAnalyzer
         {
             using var root = RootStorage.OpenRead(olePath);
 
-            // VBA storage may be at the root level or one level deep (e.g. "Macros/VBA")
             var vbaEntry = FindEntryByName(root.EnumerateEntries(), "VBA", EntryType.Storage);
 
             if (vbaEntry is null)
             {
-                // Search one level deeper
                 foreach (var entry in root.EnumerateEntries()
                     .Where(e => e.Type == EntryType.Storage))
                 {
@@ -107,7 +104,7 @@ public class OfficeMacroAnalyzer : IOfficeMacroAnalyzer
             var vbaStorage = root.OpenStorage("VBA");
             ReadModulesFromStorage(vbaStorage, results);
         }
-        catch { /* malformed OLE2 */ }
+        catch {  }
 
         return results;
     }
@@ -142,11 +139,10 @@ public class OfficeMacroAnalyzer : IOfficeMacroAnalyzer
 
                 if (text.Length > 10) results.Add(text);
             }
-            catch { /* malformed stream */ }
+            catch {  }
         }
     }
 
-    // ------------------------------------------------------------------ analysis
 
     private static OfficeMacroData AnalyzeMacroText(List<string> modules)
     {
@@ -188,7 +184,6 @@ public class OfficeMacroAnalyzer : IOfficeMacroAnalyzer
             SuspiciousPatterns: patterns);
     }
 
-    // ------------------------------------------------------------------ helpers
 
     private static bool Contains(string text, params string[] values)
         => values.Any(text.Contains);

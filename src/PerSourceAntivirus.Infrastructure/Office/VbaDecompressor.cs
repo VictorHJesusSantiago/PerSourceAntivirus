@@ -13,9 +13,6 @@ public static class VbaDecompressor
     /// </summary>
     public static byte[] Decompress(byte[] data)
     {
-        // The signature byte 0x01 separates the uncompressed module header from the
-        // compressed source.  We search from the end so we skip over any occurrences
-        // in the fixed-size header portion of the module stream.
         int sigIndex = -1;
         for (int i = data.Length - 1; i >= 0; i--)
         {
@@ -42,7 +39,6 @@ public static class VbaDecompressor
 
             if (!isCompressed)
             {
-                // Raw chunk: always 4096 literal bytes.
                 int count = Math.Min(4096, data.Length - src);
                 for (int i = 0; i < count; i++) dest.Add(data[src + i]);
                 src += count;
@@ -57,18 +53,14 @@ public static class VbaDecompressor
                     {
                         if ((flags & (1 << bit)) == 0)
                         {
-                            // Literal byte.
                             dest.Add(data[src++]);
                         }
                         else
                         {
-                            // Copy token: 2 bytes, little-endian.
                             if (src + 2 > chunkEnd) { src++; break; }
                             ushort token = (ushort)(data[src] | (data[src + 1] << 8));
                             src += 2;
 
-                            // Bit-split depends on how many bytes have been decompressed
-                            // within the CURRENT chunk so far (window position).
                             int winPos   = dest.Count - chunkStart;
                             int bitCount = ComputeBitCount(winPos);
 
@@ -80,7 +72,7 @@ public static class VbaDecompressor
                             int copyOffset = ((token & offMask) >> lenBits) + 1;
                             int copyFrom   = dest.Count - copyOffset;
 
-                            if (copyFrom < 0) continue; // malformed token
+                            if (copyFrom < 0) continue;
 
                             for (int i = 0; i < copyLen; i++)
                             {
@@ -113,7 +105,6 @@ public static class VbaDecompressor
         return sb.ToString();
     }
 
-    // MS-OVBA §2.4.1.3.6: number of offset bits = ceil(log2(max(winPos,1))), min 4.
     private static int ComputeBitCount(int winPos)
     {
         if (winPos <= 16) return 4;
