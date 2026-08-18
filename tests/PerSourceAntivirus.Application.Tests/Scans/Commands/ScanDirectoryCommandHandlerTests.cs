@@ -338,7 +338,6 @@ public class ScanDirectoryCommandHandlerTests
                 .Returns(new FileHashResult("samehash", 2.0, 7));
 
             var repository = Substitute.For<IScannedFileRepository>();
-            // Report same hash as existing scan → incremental skip.
             repository.GetExistingHashesAsync(Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
                 .Returns((IReadOnlyDictionary<string, string>)new Dictionary<string, string> { [filePath] = "samehash" });
 
