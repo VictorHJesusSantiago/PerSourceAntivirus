@@ -13,7 +13,6 @@ public class YaraScanner : IYaraScanner, IDisposable
     public YaraScanner(string rulesDirectory)
     {
         _rulesDirectory = rulesDirectory;
-        // Always initialize YARA so Reload() can compile rules even if the dir starts empty.
         _context = new YaraContext();
 
         if (!Directory.Exists(rulesDirectory)) return;
@@ -29,8 +28,6 @@ public class YaraScanner : IYaraScanner, IDisposable
         lock (_lock) { rules = _compiledRules; }
         if (rules is null) return [];
 
-        // Create a Scanner per call so concurrent invocations don't share native state.
-        // Scanner does not implement IDisposable; the context owns its lifetime.
         var scanner = new Scanner();
         var results = scanner.ScanFile(filePath, rules);
         return results
