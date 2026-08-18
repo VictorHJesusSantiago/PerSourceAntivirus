@@ -30,11 +30,9 @@ public class YaraScannerReloadTests
         var targetFile = Path.GetTempFileName();
         try
         {
-            // Start with empty directory — no rules.
             var scanner = new YaraScanner(rulesDir);
             scanner.ScanFile(targetFile).Should().BeEmpty();
 
-            // Add a rule that matches any file, then reload.
             File.WriteAllText(Path.Combine(rulesDir, "match_all.yar"), """
                 rule MatchAll { condition: true }
                 """);

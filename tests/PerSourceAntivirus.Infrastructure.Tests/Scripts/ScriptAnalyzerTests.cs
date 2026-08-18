@@ -133,7 +133,6 @@ public class ScriptAnalyzerTests
         }
     }
 
-    // ---- PowerShell AST-specific tests (patterns a regex would miss) ----
 
     [Fact]
     public void Analyze_DetectsBase64DecodeChain_ViaAst()
@@ -141,7 +140,6 @@ public class ScriptAnalyzerTests
         var file = TempScript(".ps1");
         try
         {
-            // [Convert]::FromBase64String is caught by the AST MemberExpressionAst pass
             File.WriteAllText(file,
                 "[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('dABlAHMAdAA='))");
 
@@ -160,7 +158,6 @@ public class ScriptAnalyzerTests
         var file = TempScript(".ps1");
         try
         {
-            // -EncodedCommand parameter is caught by the CommandParameterAst pass
             File.WriteAllText(file, "powershell.exe -NoProfile -EncodedCommand dABlAHMAdAA=");
 
             var result = _analyzer.Analyze(file);
