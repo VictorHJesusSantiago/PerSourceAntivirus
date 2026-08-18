@@ -17,13 +17,11 @@ public class FileMetadataAnalyzerTests
     [Fact]
     public void Analyze_ReturnsNull_ForUnsupportedExtensionWithoutAnomalies()
     {
-        var path = Path.GetTempFileName(); // .tmp extension, not in supported set, no anomalies
+        var path = Path.GetTempFileName();
         try
         {
             File.WriteAllText(path, "plain text content with no magic bytes");
-            // .tmp has no expected magic bytes and MetadataExtractor won't find metadata → null
             var result = _analyzer.Analyze(path);
-            // May be null (nothing found) — should not throw
             result.Should().BeNull();
         }
         finally { File.Delete(path); }
@@ -35,7 +33,6 @@ public class FileMetadataAnalyzerTests
         var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
         try
         {
-            // ZIP magic bytes (PK\x03\x04) written to a .jpg file
             File.WriteAllBytes(path, [0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x00, 0x00,
                                       0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
 
@@ -54,7 +51,6 @@ public class FileMetadataAnalyzerTests
         var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.pdf");
         try
         {
-            // Minimal PDF header + JavaScript action marker
             var content = "%PDF-1.4\n/JavaScript << /S /JavaScript /JS (app.alert('hi')) >>\n";
             File.WriteAllText(path, content);
 
@@ -108,10 +104,9 @@ public class FileMetadataAnalyzerTests
         var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.jpg");
         try
         {
-            // Valid JPEG header followed by an MZ (PE) magic at offset 16
             var data = new byte[32];
-            data[0] = 0xFF; data[1] = 0xD8; data[2] = 0xFF; // JPEG SOI
-            data[16] = 0x4D; data[17] = 0x5A;               // MZ (PE)
+            data[0] = 0xFF; data[1] = 0xD8; data[2] = 0xFF;
+            data[16] = 0x4D; data[17] = 0x5A;
             File.WriteAllBytes(path, data);
 
             var result = _analyzer.Analyze(path);

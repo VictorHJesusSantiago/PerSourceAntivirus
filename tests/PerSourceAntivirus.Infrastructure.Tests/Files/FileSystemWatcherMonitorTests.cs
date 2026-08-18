@@ -12,7 +12,6 @@ public class FileSystemWatcherMonitorTests
         var monitor = new FileSystemWatcherMonitor();
         var detected = new List<string>();
 
-        // 10-second overall timeout for CI environments.
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var fileCreated = new TaskCompletionSource();
 
@@ -26,13 +25,11 @@ public class FileSystemWatcherMonitorTests
             }
         });
 
-        // Wait long enough for FileSystemWatcher.EnableRaisingEvents = true to be called.
         await Task.Delay(1000);
 
         var newFile = Path.Combine(watchDir, "new.txt");
         await File.WriteAllTextAsync(newFile, "test");
 
-        // Wait for the watcher to report the event, or timeout.
         await Task.WhenAny(fileCreated.Task, Task.Delay(8000));
         cts.Cancel();
 
@@ -46,7 +43,6 @@ public class FileSystemWatcherMonitorTests
             try { Directory.Delete(watchDir, recursive: true); } catch { }
         }
 
-        // WriteAllTextAsync fires both Created and Changed; at least one detection is required.
         detected.Should().Contain(newFile);
         detected.Should().AllSatisfy(p => p.Should().Be(newFile));
     }
