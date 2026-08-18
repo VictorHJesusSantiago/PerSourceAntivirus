@@ -5,14 +5,6 @@ using PerSourceAntivirus.Infrastructure;
 
 namespace PerSourceAntivirus.Infrastructure.Tests;
 
-// Guards the composition root itself. The audit found seven singleton detectors that injected a
-// *scoped* repository — each captured one AppDbContext for the process lifetime and wrote to it
-// from background scan threads, where it is not thread-safe. Nothing caught that: the DI container
-// only reports captive dependencies when scope validation is on (Development-only by default), and
-// the detectors were never started, so the bug stayed dormant until they were.
-//
-// These tests inspect the service descriptors directly — no instantiation, so they run on any
-// machine regardless of admin rights or native dependencies.
 public class DependencyInjectionGraphTests
 {
     private static ServiceCollection BuildRegistrations()
@@ -42,9 +34,6 @@ public class DependencyInjectionGraphTests
 
         foreach (var descriptor in services.Where(d => d.Lifetime == ServiceLifetime.Singleton))
         {
-            // Only concrete-type registrations expose a constructor to inspect. Factory
-            // registrations (sp => new X(...)) resolve lazily and are checked by the
-            // scope-factory convention test below instead.
             var implementationType = descriptor.ImplementationType;
             if (implementationType is null) continue;
 
@@ -73,8 +62,6 @@ public class DependencyInjectionGraphTests
     [Fact]
     public void EveryServiceType_IsRegistered_ForItsOwnImplementationDependencies()
     {
-        // Catches a registration that can never be constructed because one of its dependencies
-        // was forgotten — the failure would otherwise only surface at runtime, on first resolve.
         var services = BuildRegistrations();
         var registered = services.Select(d => d.ServiceType).ToHashSet();
 
@@ -84,8 +71,6 @@ public class DependencyInjectionGraphTests
         {
             var implementationType = descriptor.ImplementationType;
             if (implementationType is null) continue;
-            // Open generic registrations (e.g. IOptionsMonitor<>) cannot be resolved statically:
-            // their parameter types are type variables with no FullName to match against.
             if (implementationType.ContainsGenericParameters) continue;
 
             var constructor = implementationType.GetConstructors()
@@ -99,7 +84,6 @@ public class DependencyInjectionGraphTests
                 if (registered.Contains(parameter.ParameterType)) continue;
                 if (IsFrameworkProvided(parameter.ParameterType)) continue;
 
-                // Open generics such as ILogger<T> are satisfied by the logging infrastructure.
                 if (parameter.ParameterType.IsGenericType &&
                     registered.Contains(parameter.ParameterType.GetGenericTypeDefinition())) continue;
 
@@ -110,9 +94,6 @@ public class DependencyInjectionGraphTests
         missing.Should().BeEmpty();
     }
 
-    // Anything the hosting/framework layer supplies rather than this project's composition root.
-    // Microsoft.Extensions.* registrations (options, logging, http) are added by AddHttpClient /
-    // AddDbContext / the generic host and are not ours to assert on.
     private static bool IsFrameworkProvided(Type type)
     {
         var name = type.FullName ?? type.Name;
@@ -126,8 +107,6 @@ public class DependencyInjectionGraphTests
     [Fact]
     public void RealtimeDetectors_AreRegisteredAsSingletons()
     {
-        // Detectors hold per-process dedup state (_alerted, _recentAlerts). Registering one as
-        // Transient or Scoped would silently reset that state and produce duplicate alerts.
         var services = BuildRegistrations();
 
         var detectorRegistrations = services
@@ -142,8 +121,6 @@ public class DependencyInjectionGraphTests
     [Fact]
     public void AlertRepositories_AreRegisteredAsScoped()
     {
-        // The mirror of the rule above: repositories wrap AppDbContext and must never be
-        // singletons, or every writer would share one non-thread-safe context.
         var services = BuildRegistrations();
 
         var repositoryRegistrations = services
