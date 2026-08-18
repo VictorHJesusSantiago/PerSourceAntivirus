@@ -3,9 +3,6 @@ using PerSourceAntivirus.Infrastructure.Detection.Heuristics;
 
 namespace PerSourceAntivirus.Infrastructure.Tests.Detection;
 
-// The heap-spray *decision* logic used to be private inside a detector that needs
-// OpenProcess/ReadProcessMemory and admin rights, so none of it could be verified. Extracted into
-// HeapSprayHeuristics, the thresholds that decide whether a process gets flagged are now testable.
 public class HeapSprayHeuristicsTests
 {
     [Fact]
@@ -17,7 +14,6 @@ public class HeapSprayHeuristicsTests
     [Fact]
     public void CalculateEntropy_IsZero_ForUniformBytes()
     {
-        // A NOP sled is exactly this: one byte value repeated. Zero entropy is the spray signal.
         var sled = new byte[4096];
         Array.Fill(sled, (byte)0x90);
 
@@ -27,7 +23,6 @@ public class HeapSprayHeuristicsTests
     [Fact]
     public void CalculateEntropy_IsEight_ForUniformlyDistributedBytes()
     {
-        // Every value 0-255 appearing equally often is maximum entropy for a byte alphabet.
         var data = new byte[256 * 16];
         for (var i = 0; i < data.Length; i++) data[i] = (byte)(i % 256);
 
@@ -87,7 +82,6 @@ public class HeapSprayHeuristicsTests
     [Fact]
     public void EvaluateUniformSizes_DoesNotFlag_AtExactlyTheThreshold()
     {
-        // Boundary: the rule is "> 50", so exactly 50 must stay silent.
         var regions = Enumerable.Repeat(1_048_576L, HeapSprayHeuristics.UniformSizeBucketThreshold).ToList();
 
         HeapSprayHeuristics.EvaluateUniformSizes(regions).Should().BeNull();
@@ -96,7 +90,6 @@ public class HeapSprayHeuristicsTests
     [Fact]
     public void EvaluateUniformSizes_DoesNotFlag_VariedSizes()
     {
-        // Distinct 4 KB buckets — a normal allocation profile.
         var regions = Enumerable.Range(1, 200).Select(i => (long)i * 4096).ToList();
 
         HeapSprayHeuristics.EvaluateUniformSizes(regions).Should().BeNull();
@@ -105,7 +98,6 @@ public class HeapSprayHeuristicsTests
     [Fact]
     public void EvaluateUniformSizes_GroupsSizesWithinTheSame4KbBucket()
     {
-        // Sizes differing by less than the bucket width count as "the same size".
         var regions = Enumerable.Range(0, 60).Select(i => 1_048_576L + i).ToList();
 
         HeapSprayHeuristics.EvaluateUniformSizes(regions).Should().NotBeNull();

@@ -16,7 +16,7 @@ public class ModuleLocationHeuristicsTests
     [InlineData("kernel32.dll")]
     [InlineData("KERNEL32.DLL")]
     [InlineData("ntdll.dll")]
-    [InlineData("version.dll")]   // classic sideloading target
+    [InlineData("version.dll")]
     public void IsKnownSystemDll_MatchesCaseInsensitively(string name)
     {
         ModuleLocationHeuristics.IsKnownSystemDll(name).Should().BeTrue();
@@ -33,8 +33,6 @@ public class ModuleLocationHeuristicsTests
     [Fact]
     public void IsSearchOrderHijack_Flags_SystemDllLoadedFromApplicationDirectory()
     {
-        // The actual attack: a version.dll dropped next to a legitimate executable, which Windows
-        // loads in preference to the System32 copy.
         ModuleLocationHeuristics.IsSearchOrderHijack(
             "version.dll", @"C:\Program Files\SomeApp", TrustedDirectories)
             .Should().BeTrue();
@@ -60,7 +58,6 @@ public class ModuleLocationHeuristicsTests
     [Fact]
     public void IsSearchOrderHijack_DoesNotFlag_ApplicationDllOutsideSystem32()
     {
-        // Only system DLL *names* matter — an app's own DLL living in its own folder is normal.
         ModuleLocationHeuristics.IsSearchOrderHijack(
             "myapp.dll", @"C:\Program Files\SomeApp", TrustedDirectories)
             .Should().BeFalse();
@@ -93,7 +90,6 @@ public class ModuleLocationHeuristicsTests
     [Fact]
     public void IsSuspiciousExecutableLocation_DoesNotFlag_ProgramFiles()
     {
-        // Unsigned software under Program Files is common and must not generate noise.
         string[] suspicious = [@"C:\Users\me\AppData\Local\Temp"];
 
         ModuleLocationHeuristics.IsSuspiciousExecutableLocation(
