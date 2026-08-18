@@ -26,7 +26,6 @@ public class OfficeMacroAnalyzerTests
         var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.doc");
         try
         {
-            // Create a valid OLE2 compound file with no VBA storage using OpenMcdf 3.x API
             using (var root = RootStorage.Create(path))
             {
                 root.CreateStorage("WordDocument");
@@ -67,13 +66,12 @@ public class OfficeMacroAnalyzerTests
             var vbaCode = "Sub AutoOpen()\nShell \"cmd.exe /c whoami\"\nEnd Sub\n";
             var codeBytes = System.Text.Encoding.Default.GetBytes(vbaCode);
 
-            // Uncompressed VBA stream: 0x01 signature + raw-chunk header + code + padding
             var chunk = new byte[2 + 4096];
-            chunk[0] = 0xFF; chunk[1] = 0x3F; // raw-chunk header (isCompressed=0)
+            chunk[0] = 0xFF; chunk[1] = 0x3F;
             Array.Copy(codeBytes, 0, chunk, 2, Math.Min(codeBytes.Length, 4096));
 
             var streamData = new byte[1 + chunk.Length];
-            streamData[0] = 0x01; // compression signature
+            streamData[0] = 0x01;
             Array.Copy(chunk, 0, streamData, 1, chunk.Length);
 
             using (var root = RootStorage.Create(path))

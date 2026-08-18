@@ -92,7 +92,6 @@ public class StaticBlocklistProviderTests
     [Fact]
     public void GetAllBlockedAddresses_ReturnsSnapshot_NotTheLiveSet()
     {
-        // Reload() swaps the backing set wholesale; a caller mid-enumeration must not be affected.
         var filePath = Path.GetTempFileName();
         try
         {
