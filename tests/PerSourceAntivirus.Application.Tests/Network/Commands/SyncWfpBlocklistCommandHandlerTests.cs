@@ -23,8 +23,6 @@ public class SyncWfpBlocklistCommandHandlerTests
     [Fact]
     public async Task Handle_PushesBlocklistProviderIpsIntoWfp()
     {
-        // Regression guard: the handler used to ignore IBlocklistProvider entirely, so IPs newly
-        // imported by the threat feeds never reached a WFP filter.
         var (handler, wfp, blocklist, _) = CreateSut();
         blocklist.GetAllBlockedAddresses().Returns(["192.0.2.1", "198.51.100.7"]);
         wfp.SyncFromIpListAsync(Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>()).Returns(2);

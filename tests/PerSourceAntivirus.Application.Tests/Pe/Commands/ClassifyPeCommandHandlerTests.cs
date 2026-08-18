@@ -35,7 +35,7 @@ public class ClassifyPeCommandHandlerTests
         var tmp = Path.GetTempFileName();
         try
         {
-            File.WriteAllBytes(tmp, new byte[] { 0x4D, 0x5A, 0x90, 0x00 }); // MZ header
+            File.WriteAllBytes(tmp, new byte[] { 0x4D, 0x5A, 0x90, 0x00 });
 
             var classifier = Substitute.For<IPeMlClassifier>();
             classifier.ModelVersion.Returns("heuristic-v1");
