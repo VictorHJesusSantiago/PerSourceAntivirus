@@ -42,7 +42,6 @@ public class HttpYaraRulesUpdater(IYaraScanner yaraScanner, string rulesDirector
             }
         }
 
-        // Reload scanner with newly downloaded rules.
         yaraScanner.Reload();
 
         return new YaraRulesUpdateResult(filesDownloaded, string.Join(", ", sources), true);

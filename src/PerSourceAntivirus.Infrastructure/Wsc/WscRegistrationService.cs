@@ -32,14 +32,13 @@ public sealed class WscRegistrationService : IWscRegistration
             instance["instanceGuid"] = "{A1B2C3D4-E5F6-7890-ABCD-EF1234567891}";
             instance["pathToSignedProductExe"] = exePath;
             instance["pathToSignedReportingExe"] = exePath;
-            instance["productState"] = 397312;  // 0x61100 = enabled, up-to-date, real-time on
+            instance["productState"] = 397312;
 
             instance.Put();
             _registeredProduct = instance;
         }
         catch
         {
-            // WSC registration requires elevation and specific Windows versions
         }
         return Task.CompletedTask;
     }
