@@ -40,7 +40,6 @@ public class DetectorDiagnosticsTests
         health.ScansFailed.Should().Be(1);
         health.LastFailureReason.Should().Be("UnauthorizedAccessException");
         health.LastFailureUtc.Should().NotBeNull();
-        // A detector that only ever fails must not look like it succeeded.
         health.LastSuccessfulScanUtc.Should().BeNull();
     }
 
@@ -64,7 +63,6 @@ public class DetectorDiagnosticsTests
     [Fact]
     public async Task Counters_AreAccurateUnderConcurrentWriters()
     {
-        // Detectors report from independent background threads; the registry must not lose counts.
         var sut = CreateSut();
         const int writers = 8;
         const int perWriter = 500;

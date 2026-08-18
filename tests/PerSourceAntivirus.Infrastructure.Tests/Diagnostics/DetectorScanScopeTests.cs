@@ -25,7 +25,6 @@ public class DetectorScanScopeTests
     {
         var diagnostics = CreateDiagnostics();
 
-        // The whole point of the original bare `catch {}`: a failing scan must not kill the loop.
         var act = async () => await DetectorScanScope.RunAsync(
             diagnostics, "Sut", () => throw new InvalidOperationException("boom"));
 
