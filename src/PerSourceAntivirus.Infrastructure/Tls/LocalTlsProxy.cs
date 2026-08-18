@@ -30,7 +30,7 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
     ];
 
     private static readonly string[] SuspiciousTlds = [".xyz", ".tk", ".cc", ".pw", ".top", ".gq", ".ml", ".cf"];
-    private static readonly byte[] PeMagic = [0x4D, 0x5A]; // MZ
+    private static readonly byte[] PeMagic = [0x4D, 0x5A];
 
     private readonly string _caPath;
     private readonly Channel<TlsInspectionEvent> _channel;
@@ -49,8 +49,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
     {
         _caPath = caPath;
         _scopeFactory = scopeFactory;
-        // Note: unlike _channel (drained by WatchAsync), certificate alerts have no channel —
-        // see RaiseCertAlert for why.
         _channel = Channel.CreateUnbounded<TlsInspectionEvent>(new UnboundedChannelOptions
         {
             SingleWriter = false,
@@ -102,8 +100,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
         if (!string.IsNullOrEmpty(dir))
             Directory.CreateDirectory(dir);
 
-        // Always regenerate so we have the private key in memory.
-        // The public cert is saved to disk only for user/system trust installation.
         return GenerateAndSaveCaCert();
     }
 
@@ -125,14 +121,12 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
             DateTimeOffset.UtcNow.AddDays(-1),
             DateTimeOffset.UtcNow.AddYears(5));
 
-        // Export public cert to disk
         var dir = Path.GetDirectoryName(_caPath);
         if (!string.IsNullOrEmpty(dir))
             Directory.CreateDirectory(dir);
 
         File.WriteAllBytes(_caPath, caCert.Export(X509ContentType.Cert));
 
-        // Install to CurrentUser\Root
         try
         {
             using var store = new X509Store(StoreName.Root, StoreLocation.CurrentUser);
@@ -142,7 +136,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
         }
         catch
         {
-            // installation failure is non-fatal
         }
 
         return caCert;
@@ -195,7 +188,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
             }
             catch
             {
-                // continue accepting
             }
         }
     }
@@ -207,11 +199,9 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
             using var _ = client;
             var stream = client.GetStream();
 
-            // Read the CONNECT line
             var connectLine = await ReadLineAsync(stream, ct);
             if (string.IsNullOrEmpty(connectLine)) return;
 
-            // Parse "CONNECT host:port HTTP/1.1"
             if (!connectLine.StartsWith("CONNECT ", StringComparison.OrdinalIgnoreCase))
                 return;
 
@@ -231,21 +221,17 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
                 targetPort = 443;
             }
 
-            // Drain remaining headers
             while (true)
             {
                 var headerLine = await ReadLineAsync(stream, ct);
                 if (string.IsNullOrEmpty(headerLine)) break;
             }
 
-            // Send 200 Connection Established
             var established = Encoding.ASCII.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");
             await stream.WriteAsync(established, ct);
 
-            // Get leaf cert for this host
             var leafCert = GetOrCreateLeafCert(targetHost);
 
-            // Wrap client side in SslStream
             using var clientSsl = new SslStream(stream, leaveInnerStreamOpen: false,
                 (_, _, _, _) => true);
 
@@ -256,7 +242,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
                 EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
             }, ct);
 
-            // Connect to real target
             using var targetTcp = new TcpClient();
             await targetTcp.ConnectAsync(targetHost, targetPort, ct);
 
@@ -280,7 +265,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
             if (serverCert != null)
                 ValidateAndFireCertAlert(targetHost, targetPort, serverCert, policyErrors);
 
-            // Intercept and forward HTTP request
             await InterceptAndForwardAsync(clientSsl, targetSsl, targetHost, targetPort, ct);
         }
         catch (OperationCanceledException)
@@ -288,7 +272,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
         }
         catch
         {
-            // ignore per-connection errors
         }
     }
 
@@ -299,7 +282,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
         int targetPort,
         CancellationToken ct)
     {
-        // Read the HTTP request from client
         var requestBytes = await ReadHttpMessageAsync(clientStream, ct);
         if (requestBytes.Length == 0) return;
 
@@ -307,37 +289,30 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
         var (method, path, requestHeaders) = ParseHttpHeaders(requestText);
         var requestBodySize = GetBodySize(requestBytes, requestText);
 
-        // Check for suspicious user-agent
         var userAgent = ExtractHeader(requestHeaders, "User-Agent");
         var isSuspiciousRequest = IsSuspiciousUserAgent(userAgent);
         var suspiciousReasons = new List<string>();
         if (isSuspiciousRequest) suspiciousReasons.Add($"Suspicious User-Agent: {userAgent}");
 
-        // Check for suspicious TLD
         if (HasSuspiciousTld(targetHost)) suspiciousReasons.Add($"Suspicious TLD in host: {targetHost}");
 
-        // Check for potential exfiltration (POST with binary/base64 body)
         if (method.Equals("POST", StringComparison.OrdinalIgnoreCase) && IsNonStandardPath(path))
         {
             if (requestBodySize > 0 && IsPotentialExfil(requestBytes))
                 suspiciousReasons.Add("Potential data exfiltration: POST with encoded body to non-standard path");
         }
 
-        // Forward request to target
         await targetStream.WriteAsync(requestBytes, ct);
         await targetStream.FlushAsync(ct);
 
-        // Read response from target
         var responseBytes = await ReadHttpMessageAsync(targetStream, ct);
         var responseText = Encoding.UTF8.GetString(responseBytes);
         var (_, _, responseHeaders) = ParseHttpHeaders(responseText);
         var responseBodySize = GetBodySize(responseBytes, responseText);
         var statusCode = ParseStatusCode(responseText);
 
-        // Check if response contains PE header (malware download)
         if (ContainsPeHeader(responseBytes)) suspiciousReasons.Add("Response contains PE executable header (MZ)");
 
-        // Forward response to client
         await clientStream.WriteAsync(responseBytes, ct);
         await clientStream.FlushAsync(ct);
 
@@ -379,7 +354,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
         var buf = new List<byte>(8192);
         var oneByte = new byte[1];
 
-        // Read headers until double CRLF
         int crlfCount = 0;
         while (crlfCount < 4)
         {
@@ -392,15 +366,14 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
             else
                 crlfCount = 0;
 
-            if (buf.Count > 65536) break; // safety limit for headers
+            if (buf.Count > 65536) break;
         }
 
-        // Check Content-Length and read body
         var headerText = Encoding.UTF8.GetString(buf.ToArray());
         var contentLength = ExtractContentLength(headerText);
         if (contentLength > 0)
         {
-            var bodyBuf = new byte[Math.Min(contentLength, 1024 * 1024)]; // cap at 1MB
+            var bodyBuf = new byte[Math.Min(contentLength, 1024 * 1024)];
             var totalRead = 0;
             while (totalRead < bodyBuf.Length)
             {
@@ -449,7 +422,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
 
     private static int ParseStatusCode(string responseText)
     {
-        // "HTTP/1.1 200 OK"
         var match = Regex.Match(responseText, @"HTTP/\d\.\d\s+(\d{3})");
         return match.Success && int.TryParse(match.Groups[1].Value, out var code) ? code : 0;
     }
@@ -469,9 +441,7 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
 
     private static bool IsNonStandardPath(string path)
     {
-        // Standard paths typically start with known prefixes
         if (string.IsNullOrEmpty(path) || path == "/") return false;
-        // Paths with random-looking segments or no recognizable structure
         return !path.StartsWith("/api/") &&
                !path.StartsWith("/v1/") &&
                !path.StartsWith("/v2/") &&
@@ -487,7 +457,6 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
         var body = requestBytes[bodyStart..];
         if (body.Length < 50) return false;
 
-        // Check if body is base64-like
         var bodyText = Encoding.ASCII.GetString(body[..Math.Min(256, body.Length)]);
         var base64Ratio = bodyText.Count(c =>
             (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
@@ -505,14 +474,12 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
 
     private static int FindBodyStart(byte[] bytes)
     {
-        // Find \r\n\r\n
         for (var i = 0; i < bytes.Length - 3; i++)
         {
             if (bytes[i] == '\r' && bytes[i + 1] == '\n' &&
                 bytes[i + 2] == '\r' && bytes[i + 3] == '\n')
                 return i + 4;
         }
-        // Find \n\n
         for (var i = 0; i < bytes.Length - 1; i++)
         {
             if (bytes[i] == '\n' && bytes[i + 1] == '\n')
@@ -577,19 +544,12 @@ public sealed class LocalTlsProxy : ITlsInspector, IDisposable
                 DetectedAtUtc = now
             };
 
-            // [AUDIT FIX — HIGH, Domain 15/16] An unbounded Channel<TlsCertAlert> used to be
-            // written here and never read by anyone — every certificate alert stayed in memory
-            // for the lifetime of the process (a slow leak proportional to HTTPS traffic).
-            // The alert already has two real consumption paths: durable persistence below and
-            // the CertAlertDetected event for in-process subscribers. The channel added nothing.
             _ = PersistAsync(alert);
             CertAlertDetected?.Invoke(this, new TlsCertAlertEventArgs(alert));
         }
         catch { }
     }
 
-    // Per-write scope: AppDbContext is not thread-safe; alerts are raised from TLS proxy connection
-    // threads. Persistence is optional (the repository may not be registered), so resolve it leniently.
     private async Task PersistAsync(TlsCertAlert alert)
     {
         if (_scopeFactory is null) return;

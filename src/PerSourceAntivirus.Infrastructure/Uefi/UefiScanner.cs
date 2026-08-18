@@ -7,8 +7,8 @@ namespace PerSourceAntivirus.Infrastructure.Uefi;
 
 public class UefiScanner : IUefiScanner
 {
-    private const uint AcpiProvider = 0x41435049; // 'ACPI'
-    private const uint RsmbProvider = 0x52534D42; // 'RSMB'
+    private const uint AcpiProvider = 0x41435049;
+    private const uint RsmbProvider = 0x52534D42;
 
     private static readonly (string Name, string Description, byte[] Signature)[] KnownSignatures =
     [
